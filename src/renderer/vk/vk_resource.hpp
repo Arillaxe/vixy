@@ -31,6 +31,7 @@ public:
       vk::Format format,
       vk::ImageTiling tiling,
       vk::ImageUsageFlags usage);
+  void copyBufferEx(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer, vk::BufferCopy copyParams);
 
   vk::raii::DescriptorPool &getDescriptorPool() { return descriptorPool; }
 };

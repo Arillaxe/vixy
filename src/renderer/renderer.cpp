@@ -8,8 +8,12 @@
 #include <iostream>
 #include <algorithm>
 #include <core/frustum_culler.hpp>
+#include <renderer/mesh_allocator.hpp>
 
-Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<GPUChunkMesh> &lQueue, ThreadQueue<ChunkPos> &uQueue)
+constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+constexpr int MAX_DRAW_SIZE = sizeof(vk::DrawIndirectCommand) * 1000;
+
+Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<MeshAllocation> &lQueue, ThreadQueue<glm::ivec3> &uQueue)
 		: window(win),
 			vkContext(win),
 			vkCommand(vkContext),
@@ -26,7 +30,13 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<GPUChunk
 							.setQueryCount(MAX_FRAMES_IN_FLIGHT * 2)),
 			loadQueue(lQueue),
 			unloadQueue(uQueue),
-			gui(window, vkContext, vkResource, vkSwapchain)
+			gui(window, vkContext, vkResource, vkSwapchain),
+			vertexBuffer(vkResource.createBuffer(VERTEX_BUFFER_SIZE, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst)),
+			vertexBufferMemory(vkResource.getBufferMemory(vertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			indexBuffer(vkResource.createBuffer(INDEX_BUFFER_SIZE, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst)),
+			indexBufferMemory(vkResource.getBufferMemory(indexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			indirectBuffer(vkResource.createBuffer(MAX_DRAW_SIZE, vk::BufferUsageFlagBits::eIndirectBuffer)),
+			indirectBufferMemory(vkResource.getBufferMemory(indirectBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent))
 {
 	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 	{
@@ -216,37 +226,50 @@ void Renderer::render()
 
 	while (unloadQueue.tryPop(toUnload))
 	{
-		chunkMeshes.erase(toUnload);
+		chunkMeshesAllocations.erase(toUnload);
 	}
 
 	loadQueueSize = loadQueue.getSize();
 
 	while (loadQueue.tryPop(toLoad))
 	{
-		chunkMeshes.insert_or_assign(toLoad.getChunkPos(), std::move(toLoad));
+		chunkMeshesAllocations.insert_or_assign(toLoad.pos, std::move(toLoad));
 	}
 
 	totalIndices = 0;
 
 	float aspectRatio = static_cast<float>(vkSwapchain.getExtent().width) / static_cast<float>(vkSwapchain.getExtent().height);
-	// FrustumCuller culler(camera, aspectRatio);
+	FrustumCuller culler(camera, aspectRatio);
 
-	for (auto &[pos, chunkMesh] : chunkMeshes)
+	commandBuffer.bindVertexBuffers(0, *vertexBuffer, {0});
+	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexTypeValue<uint32_t>::value);
+	commandBuffer.pushConstants<PushConstants>(mainPipeline.getPipelineLayout(), vk::ShaderStageFlagBits::eVertex, 0, pushConstants);
+	auto indirectCommands = static_cast<vk::DrawIndexedIndirectCommand *>(indirectBufferMemory.mapMemory(0, MAX_DRAW_SIZE));
+
+	int commandId = 0;
+
+	for (auto &[pos, meshAllocation] : chunkMeshesAllocations)
 	{
 
-		// if (!culler.isVisible(pos))
-		// 	continue;
+		if (!culler.isVisible(pos))
+			continue;
 
-		commandBuffer.bindVertexBuffers(0, *chunkMesh.getVertexBuffer(), {0});
-		commandBuffer.bindIndexBuffer(*chunkMesh.getIndexBuffer(), 0, vk::IndexTypeValue<uint32_t>::value);
-		commandBuffer.pushConstants<PushConstants>(mainPipeline.getPipelineLayout(), vk::ShaderStageFlagBits::eVertex, 0, pushConstants);
+		indirectCommands[commandId++] = vk::DrawIndexedIndirectCommand{
+				.indexCount = meshAllocation.indexCount,
+				.instanceCount = 1,
+				.firstIndex = static_cast<uint32_t>(
+						meshAllocation.indexOffset / sizeof(uint32_t)),
+				.vertexOffset = static_cast<int32_t>(
+						meshAllocation.vertexOffset / sizeof(Vertex)),
+				.firstInstance = 0,
+		};
 
-		int indicesCount = chunkMesh.getIndicesCount();
-
-		totalIndices += indicesCount;
-
-		commandBuffer.drawIndexed(indicesCount, 1, 0, 0, 0);
+		totalIndices += meshAllocation.indexCount;
 	}
+
+	indirectBufferMemory.unmapMemory();
+
+	commandBuffer.drawIndexedIndirect(*indirectBuffer, 0, commandId, sizeof(vk::DrawIndexedIndirectCommand));
 
 	// GUI
 
@@ -330,9 +353,8 @@ void Renderer::drawGUI()
 {
 	ImGui::Text("CPU frame: %.2fms", cpuMs);
 	ImGui::Text("GPU frame: %.2fms", gpuMs);
-	ImGui::Text("Chunks loaded: %d", chunkMeshes.size());
+	ImGui::Text("Chunks loaded: %d", chunkMeshesAllocations.size());
 	ImGui::Text("Load queue size: %d", loadQueueSize);
 	ImGui::Text("Unload queue size: %d", unloadQueueSize);
 	ImGui::Text("Triangles: %d", totalIndices / 3);
-	ImGui::Text("Destroyed meshes: %d", GPUChunkMesh::destroyed);
 }

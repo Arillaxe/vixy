@@ -8,8 +8,8 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
-#include <renderer/gpu_chunk_mesh.hpp>
 #include <renderer/vk/vk_resource.hpp>
+#include <renderer/mesh_allocator.hpp>
 
 struct IVec2Hash
 {
@@ -26,17 +26,18 @@ private:
   Camera &camera;
   World &world;
   ChunkMeshGenerator chunkMeshGenerator;
-  ThreadQueue<GPUChunkMesh> &loadQueue;
-  ThreadQueue<ChunkPos> &unloadQueue;
+  ThreadQueue<MeshAllocation> &loadQueue;
+  ThreadQueue<glm::ivec3> &unloadQueue;
   std::atomic<bool> shouldClose = false;
-  std::unordered_map<ChunkPos, ChunkMesh, ChunkPosHash> chunkMeshes;
+  std::unordered_map<glm::ivec3, ChunkMesh> chunkMeshes;
+  std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers;
+  MeshAllocator meshAllocator;
 
   void update();
-  std::vector<glm::ivec3> getChunksAround(glm::vec3 &position);
-  std::vector<glm::ivec3> getRegionsAround(glm::vec3 &position);
+  std::vector<glm::ivec2> getChunksAround(glm::vec3 &position);
 
 public:
-  ChunkSystem(VkResource &resource, Camera &cam, World &w, ThreadQueue<GPUChunkMesh> &loadQueue, ThreadQueue<ChunkPos> &unloadQueue);
+  ChunkSystem(VkResource &resource, Camera &cam, World &w, ThreadQueue<MeshAllocation> &loadQueue, ThreadQueue<glm::ivec3> &unloadQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers);
 
   void run()
   {
