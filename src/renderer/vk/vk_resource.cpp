@@ -68,10 +68,8 @@ vk::raii::ImageView VkResource::createImageView(vk::Image const &image, vk::Form
 
 vk::raii::Buffer VkResource::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage)
 {
-  static uint32_t counter = 0;
-
-  counter++;
-
+  // static uint32_t counter = 0;
+  // counter++;
   // std::cout << counter << std::endl;
 
   vk::BufferCreateInfo bufferInfo{
@@ -111,8 +109,13 @@ vk::raii::DeviceMemory VkResource::getImageMemory(vk::raii::Image &image, vk::Me
 
 void VkResource::copyBuffer(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer, vk::DeviceSize size)
 {
+  copyBufferEx(srcBuffer, dstBuffer, vk::BufferCopy{.size = size});
+}
+
+void VkResource::copyBufferEx(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer, vk::BufferCopy copyParams)
+{
   vk::raii::CommandBuffer commandCopyBuffer = vkCommand.beginSingleTimeCommands();
-  commandCopyBuffer.copyBuffer(*srcBuffer, *dstBuffer, vk::BufferCopy{.size = size});
+  commandCopyBuffer.copyBuffer(*srcBuffer, *dstBuffer, copyParams);
   vkCommand.endSingleTimeCommands(std::move(commandCopyBuffer));
 }
 

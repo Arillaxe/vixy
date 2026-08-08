@@ -18,6 +18,7 @@
 #include <renderer/gpu_chunk_mesh.hpp>
 #include <core/raycast.hpp>
 #include <core/math.hpp>
+#include <renderer/mesh_allocator.hpp>
 
 class App
 {
@@ -31,7 +32,7 @@ private:
   World world;
 
   std::thread chunkSystemThread;
-  ThreadQueue<GPUChunkMesh> loadQueue;
+  ThreadQueue<MeshAllocation> loadQueue;
   ThreadQueue<glm::ivec3> unloadQueue;
 
   Renderer renderer;
@@ -42,10 +43,10 @@ private:
 public:
   App()
       : window(WIDTH, HEIGHT),
-        renderer(window, scene, camera, loadQueue, unloadQueue),
         input(window, camera),
         world(123456u),
-        chunkSystem(renderer.getVkResource(), camera, world, loadQueue, unloadQueue),
+        renderer(window, scene, camera, loadQueue, unloadQueue),
+        chunkSystem(renderer.getVkResource(), camera, world, loadQueue, unloadQueue, renderer.getBuffers()),
         robotMesh(renderer.getVkResource(), "./models/robot.gltf")
   {
     Entity object("object");

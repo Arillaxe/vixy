@@ -10,13 +10,11 @@
 #include <renderer/pipelines/main_pipeline.hpp>
 #include <core/scene.hpp>
 #include <core/camera.hpp>
-#include <renderer/gpu_chunk_mesh.hpp>
 #include <core/thread_queue.hpp>
 #include <core/chunk_mesh.hpp>
 #include <unordered_map>
 #include <renderer/gui.hpp>
-
-constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+#include <renderer/mesh_allocator.hpp>
 
 class Renderer
 {
@@ -32,11 +30,11 @@ private:
   MainPipeline mainPipeline;
   Camera &camera;
   vk::raii::QueryPool queryPool;
-  std::unordered_map<glm::ivec3, GPUChunkMesh> chunkMeshes;
-  ThreadQueue<GPUChunkMesh> &loadQueue;
+  std::unordered_map<glm::ivec3, MeshAllocation> chunkMeshesAllocations;
+  ThreadQueue<MeshAllocation> &loadQueue;
   ThreadQueue<glm::ivec3> &unloadQueue;
   glm::ivec3 toUnload;
-  GPUChunkMesh toLoad;
+  MeshAllocation toLoad;
   GUI gui;
   uint32_t loadQueueSize;
   uint32_t unloadQueueSize;
@@ -45,6 +43,12 @@ private:
   double gpuMs;
   uint32_t frameIndex = 0;
   bool wireframeMode = true;
+  vk::raii::Buffer vertexBuffer;
+  vk::raii::DeviceMemory vertexBufferMemory;
+  vk::raii::Buffer indexBuffer;
+  vk::raii::DeviceMemory indexBufferMemory;
+  vk::raii::Buffer indirectBuffer;
+  vk::raii::DeviceMemory indirectBufferMemory;
 
   void transition_image_layout(
       vk::raii::CommandBuffer &commandBuffer,
@@ -58,9 +62,12 @@ private:
       vk::ImageAspectFlags image_aspect_flags);
 
 public:
-  Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<GPUChunkMesh> &lQueue, ThreadQueue<glm::ivec3> &uQueue);
+  Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<MeshAllocation> &lQueue, ThreadQueue<glm::ivec3> &uQueue);
 
   VkResource &getVkResource() { return vkResource; }
+  std::pair<vk::raii::Buffer &, vk::raii::Buffer &> getBuffers() { return {vertexBuffer, indexBuffer}; }
+  vk::raii::Buffer &getVertexBuffer() { return vertexBuffer; }
+  vk::raii::Buffer &getIndexBuffer() { return indexBuffer; }
 
   void render();
   void waitIdle();

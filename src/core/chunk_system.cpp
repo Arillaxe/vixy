@@ -43,8 +43,15 @@ namespace
   }
 } // namespace
 
-ChunkSystem::ChunkSystem(VkResource &resource, Camera &cam, World &w, ThreadQueue<GPUChunkMesh> &lQueue, ThreadQueue<glm::ivec3> &uQueue)
-    : vkResource(resource), camera(cam), loadQueue(lQueue), unloadQueue(uQueue), world(w), chunkMeshGenerator(w) {}
+ChunkSystem::ChunkSystem(VkResource &resource, Camera &cam, World &w, ThreadQueue<MeshAllocation> &lQueue, ThreadQueue<glm::ivec3> &uQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> b)
+    : vkResource(resource),
+      camera(cam),
+      loadQueue(lQueue),
+      unloadQueue(uQueue),
+      world(w),
+      chunkMeshGenerator(w),
+      buffers(b),
+      meshAllocator(vkResource, buffers.first, buffers.second) {}
 
 std::vector<glm::ivec2> ChunkSystem::getChunksAround(glm::vec3 &position)
 {
@@ -74,6 +81,8 @@ std::vector<glm::ivec2> ChunkSystem::getChunksAround(glm::vec3 &position)
 
 void ChunkSystem::update()
 {
+  // static int avgVerticesPerChunk = 0;
+
   // glm::vec3 &cameraPosition = camera.position;
   glm::vec3 cameraPosition = glm::vec3(0, 0, 0);
 
@@ -105,10 +114,18 @@ void ChunkSystem::update()
 
         auto &mesh = chunkMeshes.find(chunk->pos)->second;
 
-        GPUChunkMesh gpuMesh(&vkResource, chunk->pos);
-        gpuMesh.generateRenderMesh(mesh.vertices, mesh.indices);
-        loadQueue.push(std::move(gpuMesh));
+        auto meshAllocation = meshAllocator.allocate(mesh.vertices, mesh.indices);
+        meshAllocation.pos = chunk->pos;
+
+        // GPUChunkMesh gpuMesh(&vkResource, chunk->pos);
+        // avgVerticesPerChunk += mesh.vertices.size();
+        // avgVerticesPerChunk /= 2;
+
+        // gpuMesh.generateRenderMesh(mesh.vertices, mesh.indices);
+        loadQueue.push(std::move(meshAllocation));
       }
     }
   }
+
+  // std::cout << avgVerticesPerChunk << std::endl;
 }
