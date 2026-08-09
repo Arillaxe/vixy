@@ -15,7 +15,6 @@
 #include <core/thread_queue.hpp>
 #include <thread>
 #include <core/chunk_system.hpp>
-#include <renderer/gpu_chunk_mesh.hpp>
 #include <core/raycast.hpp>
 #include <core/math.hpp>
 #include <renderer/mesh_allocator.hpp>

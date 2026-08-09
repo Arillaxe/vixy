@@ -13,6 +13,7 @@ struct MeshAllocation
 {
   glm::ivec3 pos;
   uint32_t vertexOffset;
+  uint32_t vertexCount;
   uint32_t indexOffset;
   uint32_t indexCount;
 };
@@ -31,6 +32,7 @@ private:
 public:
   MeshAllocator(VkResource &resource, vk::raii::Buffer &vertexBuffer, vk::raii::Buffer &indexBuffer);
   MeshAllocation allocate(std::vector<Vertex> &vertices, std::vector<uint32_t> &indices);
+  void free(MeshAllocation &allocation);
 };
 
 #endif // MESH_ALLOCATOR_HPP

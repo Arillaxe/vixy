@@ -29,12 +29,13 @@ private:
   ThreadQueue<MeshAllocation> &loadQueue;
   ThreadQueue<glm::ivec3> &unloadQueue;
   std::atomic<bool> shouldClose = false;
-  std::unordered_map<glm::ivec3, ChunkMesh> chunkMeshes;
+  std::unordered_map<glm::ivec3, MeshAllocation> meshAllocations;
   std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers;
   MeshAllocator meshAllocator;
+  std::unordered_set<glm::ivec2> loadedChunks;
 
   void update();
-  std::vector<glm::ivec2> getChunksAround(glm::vec3 &position);
+  std::unordered_set<glm::ivec2> getChunksAround(glm::vec3 &position);
 
 public:
   ChunkSystem(VkResource &resource, Camera &cam, World &w, ThreadQueue<MeshAllocation> &loadQueue, ThreadQueue<glm::ivec3> &unloadQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers);

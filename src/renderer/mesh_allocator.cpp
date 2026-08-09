@@ -51,7 +51,14 @@ MeshAllocation MeshAllocator::allocate(std::vector<Vertex> &vertices, std::vecto
   return MeshAllocation{
       {0, 0, 0},
       verticesOffset,
+      static_cast<uint32_t>(vertices.size()),
       indicesOffset,
       static_cast<uint32_t>(indices.size()),
   };
+}
+
+void MeshAllocator::free(MeshAllocation &allocation)
+{
+  vertexAllocator.free(allocation.vertexOffset, sizeof(Vertex) * allocation.vertexCount);
+  indexAllocator.free(allocation.indexOffset, sizeof(uint32_t) * allocation.indexCount);
 }
