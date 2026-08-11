@@ -92,9 +92,28 @@ void ChunkSystem::update()
 
   auto desiredChunks = getChunksAround(cameraPosition);
 
+  std::unordered_set<glm::ivec2> dirtyChunks;
+
   for (auto &coord : desiredChunks)
   {
     world.loadChunk(coord.x, coord.y);
+
+    if (!loadedChunks.contains(coord))
+    {
+      // mark neighboruing chunks as dirty
+
+      std::array<glm::ivec2, 4> offs = {{
+          {1, 0},
+          {-1, 0},
+          {0, 1},
+          {0, -1},
+      }};
+
+      for (auto &offset : offs)
+      {
+        dirtyChunks.emplace(coord + offset);
+      }
+    }
   }
 
   for (auto &coord : desiredChunks)
@@ -103,7 +122,7 @@ void ChunkSystem::update()
 
     for (auto *chunk : yChunks)
     {
-      if (!chunk->isMeshed)
+      if (!chunk->isMeshed || dirtyChunks.contains(coord))
       {
         // if (!neighborsResolved(world, chunk->pos))
         //   continue;
@@ -111,19 +130,30 @@ void ChunkSystem::update()
         chunk->isMeshed = true;
 
         auto mesh = chunkMeshGenerator.getChunkMesh(*chunk, 1);
-        auto [meshAllocationIt, inserted] = meshAllocations.try_emplace(chunk->pos, meshAllocator.allocate(mesh.vertices, mesh.indices));
-
-        assert(inserted);
-
-        auto meshAllocation = meshAllocationIt->second;
-
+        auto it = meshAllocations.find(chunk->pos);
+        auto meshAllocation = meshAllocator.allocate(mesh.vertices, mesh.indices);
         meshAllocation.pos = chunk->pos;
+
+        if (it != meshAllocations.end())
+        {
+          meshAllocator.free(it->second);
+          it->second = meshAllocation;
+        }
+        else
+        {
+          meshAllocations.emplace(chunk->pos, meshAllocation);
+        }
+
+        // assert(inserted);
+
         // avgVerticesPerChunk += mesh.vertices.size();
         // avgVerticesPerChunk /= 2;
 
         loadQueue.push(std::move(meshAllocation));
       }
     }
+
+    dirtyChunks.erase(coord);
 
     loadedChunks.emplace(coord);
   }
