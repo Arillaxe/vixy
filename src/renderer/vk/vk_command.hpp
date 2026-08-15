@@ -16,8 +16,8 @@ public:
   VkCommand(VkContext &context);
 
   vk::raii::CommandBuffers createCommandBuffers(uint32_t amount);
-  vk::raii::CommandBuffer beginSingleTimeCommands();
-  void endSingleTimeCommands(vk::raii::CommandBuffer &&commandBuffer);
+  vk::raii::CommandBuffer beginSingleTimeCommands(bool q = false);
+  void endSingleTimeCommands(vk::raii::CommandBuffer &&commandBuffer, bool q = false);
 };
 
 #endif // VK_COMMAND_HPP

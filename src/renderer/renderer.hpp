@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <renderer/gui.hpp>
 #include <renderer/mesh_allocator.hpp>
+#include <renderer/texture_manager.hpp>
 
 class Renderer
 {
@@ -49,6 +50,8 @@ private:
   vk::raii::DeviceMemory indexBufferMemory;
   vk::raii::Buffer indirectBuffer;
   vk::raii::DeviceMemory indirectBufferMemory;
+  TextureManager textureManager;
+  vk::raii::Sampler sampler;
 
   void transition_image_layout(
       vk::raii::CommandBuffer &commandBuffer,
@@ -68,6 +71,7 @@ public:
   std::pair<vk::raii::Buffer &, vk::raii::Buffer &> getBuffers() { return {vertexBuffer, indexBuffer}; }
   vk::raii::Buffer &getVertexBuffer() { return vertexBuffer; }
   vk::raii::Buffer &getIndexBuffer() { return indexBuffer; }
+  vk::raii::Sampler createSampler();
 
   void render();
   void waitIdle();

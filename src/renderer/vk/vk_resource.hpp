@@ -14,6 +14,16 @@ private:
 
   uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
   vk::raii::DescriptorPool createDescriptorPool();
+  void transition_image_layout(
+      vk::raii::CommandBuffer &commandBuffer,
+      vk::Image image,
+      vk::ImageLayout old_layout,
+      vk::ImageLayout new_layout,
+      vk::AccessFlags2 src_access_mask,
+      vk::AccessFlags2 dst_access_mask,
+      vk::PipelineStageFlags2 src_stage_mask,
+      vk::PipelineStageFlags2 dst_stage_mask,
+      vk::ImageAspectFlags image_aspect_flags);
 
 public:
   VkResource(VkContext &context, VkCommand &command);
@@ -32,6 +42,7 @@ public:
       vk::ImageTiling tiling,
       vk::ImageUsageFlags usage);
   void copyBufferEx(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer, vk::BufferCopy copyParams);
+  void uploadImage(vk::raii::Buffer &stagingBuffer, vk::raii::Image &image, int width, int height);
 
   vk::raii::DescriptorPool &getDescriptorPool() { return descriptorPool; }
 };

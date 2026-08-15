@@ -6,6 +6,8 @@
 #include <array>
 #include <vector>
 
+constexpr int MAX_TEXTURES = 4096;
+
 MainPipeline::MainPipeline(VkContext &context, VkSwapchain &swapchain, VkResource &resource)
     : Vk_Pipeline(context, swapchain, resource, "slang.spv")
 {
@@ -135,16 +137,33 @@ vk::raii::Pipeline MainPipeline::createPipeline()
 
 vk::raii::DescriptorSetLayout MainPipeline::createDescriptorSetLayout()
 {
-  std::array<vk::DescriptorSetLayoutBinding, 1> bindings{{
+  std::array<vk::DescriptorSetLayoutBinding, 2> bindings{{
       {
           .binding = 0,
           .descriptorType = vk::DescriptorType::eUniformBuffer,
           .descriptorCount = 1,
           .stageFlags = vk::ShaderStageFlagBits::eVertex,
       },
+      {
+          .binding = 1,
+          .descriptorType = vk::DescriptorType::eCombinedImageSampler,
+          .descriptorCount = MAX_TEXTURES,
+          .stageFlags = vk::ShaderStageFlagBits::eFragment,
+      },
   }};
 
+  std::array<vk::DescriptorBindingFlags, 2> flags = {{
+      {},
+      vk::DescriptorBindingFlagBits::ePartiallyBound,
+  }};
+
+  vk::DescriptorSetLayoutBindingFlagsCreateInfo flagsInfo{
+      .bindingCount = static_cast<uint32_t>(flags.size()),
+      .pBindingFlags = flags.data(),
+  };
+
   vk::DescriptorSetLayoutCreateInfo layoutInfo{
+      .pNext = &flagsInfo,
       .bindingCount = static_cast<uint32_t>(bindings.size()),
       .pBindings = bindings.data(),
   };

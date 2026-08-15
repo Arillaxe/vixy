@@ -30,7 +30,7 @@ uint32_t VkResource::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags
 
 vk::raii::DescriptorPool VkResource::createDescriptorPool()
 {
-  std::array<vk::DescriptorPoolSize, 3> poolSize{{
+  std::array<vk::DescriptorPoolSize, 4> poolSize{{
       {
           .type = vk::DescriptorType::eUniformBuffer,
           .descriptorCount = 1,
@@ -42,6 +42,10 @@ vk::raii::DescriptorPool VkResource::createDescriptorPool()
       {
           .type = vk::DescriptorType::eSampler,
           .descriptorCount = IMGUI_IMPL_VULKAN_MINIMUM_SAMPLER_POOL_SIZE,
+      },
+      {
+          .type = vk::DescriptorType::eCombinedImageSampler,
+          .descriptorCount = 4096, // TODO: use MAX_TEXTURES
       },
   }};
   vk::DescriptorPoolCreateInfo poolInfo{
@@ -141,4 +145,94 @@ vk::raii::Image VkResource::createImage(
   };
 
   return vk::raii::Image(vkContext.getDevice(), imageInfo);
+}
+
+void VkResource::transition_image_layout(
+    vk::raii::CommandBuffer &commandBuffer,
+    vk::Image image,
+    vk::ImageLayout old_layout,
+    vk::ImageLayout new_layout,
+    vk::AccessFlags2 src_access_mask,
+    vk::AccessFlags2 dst_access_mask,
+    vk::PipelineStageFlags2 src_stage_mask,
+    vk::PipelineStageFlags2 dst_stage_mask,
+    vk::ImageAspectFlags image_aspect_flags)
+{
+  vk::ImageMemoryBarrier2 barrier = {
+      .srcStageMask = src_stage_mask,
+      .srcAccessMask = src_access_mask,
+      .dstStageMask = dst_stage_mask,
+      .dstAccessMask = dst_access_mask,
+      .oldLayout = old_layout,
+      .newLayout = new_layout,
+      .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+      .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+      .image = image,
+      .subresourceRange = {
+          .aspectMask = image_aspect_flags,
+          .baseMipLevel = 0,
+          .levelCount = 1,
+          .baseArrayLayer = 0,
+          .layerCount = 1,
+      },
+  };
+
+  vk::DependencyInfo dependency_info = {
+      .dependencyFlags = {},
+      .imageMemoryBarrierCount = 1,
+      .pImageMemoryBarriers = &barrier,
+  };
+
+  commandBuffer.pipelineBarrier2(dependency_info);
+}
+
+void VkResource::uploadImage(vk::raii::Buffer &stagingBuffer, vk::raii::Image &image, int width, int height)
+{
+  vk::raii::CommandBuffer commandCopyBuffer = vkCommand.beginSingleTimeCommands(true);
+  transition_image_layout(
+      commandCopyBuffer,
+      image,
+      vk::ImageLayout::eUndefined,
+      vk::ImageLayout::eTransferDstOptimal,
+      {},
+      vk::AccessFlagBits2::eTransferWrite,
+      vk::PipelineStageFlagBits2::eTopOfPipe,
+      vk::PipelineStageFlagBits2::eTransfer,
+      vk::ImageAspectFlagBits::eColor);
+
+  vk::BufferImageCopy region{
+      .bufferOffset = 0,
+      .bufferRowLength = 0,
+      .bufferImageHeight = 0,
+
+      .imageSubresource = {
+          .aspectMask = vk::ImageAspectFlagBits::eColor,
+          .mipLevel = 0,
+          .baseArrayLayer = 0,
+          .layerCount = 1,
+      },
+
+      .imageOffset = {0, 0, 0},
+
+      .imageExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1},
+  };
+
+  commandCopyBuffer.copyBufferToImage(
+      *stagingBuffer,
+      *image,
+      vk::ImageLayout::eTransferDstOptimal,
+      region);
+
+  transition_image_layout(
+      commandCopyBuffer,
+      image,
+      vk::ImageLayout::eTransferDstOptimal,
+      vk::ImageLayout::eShaderReadOnlyOptimal,
+      vk::AccessFlagBits2::eTransferWrite,
+      vk::AccessFlagBits2::eShaderSampledRead,
+      vk::PipelineStageFlagBits2::eTransfer,
+      vk::PipelineStageFlagBits2::eFragmentShader,
+      vk::ImageAspectFlagBits::eColor);
+
+  vkCommand.endSingleTimeCommands(std::move(commandCopyBuffer), true);
 }

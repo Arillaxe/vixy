@@ -24,6 +24,8 @@ struct PushConstants {
 [[vk::push_constant]]
 PushConstants push;
 
+uniform Sampler2D textures[4096];
+
 static float3 sunDir = normalize(float3(0.5, 1.0, 0.3));
 
 [shader("vertex")]
@@ -39,7 +41,9 @@ VSOutput vertMain(VSInput input, uint vertexId: SV_VertexID) {
 
 [shader("fragment")]
 float4 fragMain(VSOutput vertIn) : SV_Target {
-    return vertIn.color;
+    return textures[0].Sample(vertIn.fragTexCoord) * vertIn.color;
+    // return vertIn.color;
+
 
     // return texture.Sample(vertIn.fragTexCoord);
 }

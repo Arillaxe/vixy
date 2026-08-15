@@ -188,6 +188,7 @@ bool VkContext::isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice)
   auto features = physicalDevice.template getFeatures2<
       vk::PhysicalDeviceFeatures2,
       vk::PhysicalDeviceVulkan11Features,
+      vk::PhysicalDeviceVulkan12Features,
       vk::PhysicalDeviceVulkan13Features,
       vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
   bool supportsRequiredFeatures =
@@ -197,6 +198,8 @@ bool VkContext::isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice)
       features.template get<vk::PhysicalDeviceFeatures2>().features.fillModeNonSolid &&
       features.template get<vk::PhysicalDeviceFeatures2>().features.multiDrawIndirect &&
       features.template get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
+      features.template get<vk::PhysicalDeviceVulkan12Features>().shaderSampledImageArrayNonUniformIndexing &&
+      features.template get<vk::PhysicalDeviceVulkan12Features>().descriptorBindingPartiallyBound &&
       features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
       features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
   auto properties = physicalDevice.template getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceExtendedDynamicState3PropertiesEXT>();
@@ -246,6 +249,7 @@ vk::raii::Device VkContext::createDevice()
   vk::StructureChain<
       vk::PhysicalDeviceFeatures2,
       vk::PhysicalDeviceVulkan11Features,
+      vk::PhysicalDeviceVulkan12Features,
       vk::PhysicalDeviceVulkan13Features,
       vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
       featureChain = {
@@ -257,6 +261,10 @@ vk::raii::Device VkContext::createDevice()
                .vertexPipelineStoresAndAtomics = true,
            }},
           {.shaderDrawParameters = true},
+          {
+              .shaderSampledImageArrayNonUniformIndexing = true,
+              .descriptorBindingPartiallyBound = true,
+          },
           {.synchronization2 = true, .dynamicRendering = true},
           {.extendedDynamicState = true},
       };

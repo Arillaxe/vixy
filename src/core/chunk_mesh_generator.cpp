@@ -207,10 +207,28 @@ void ChunkMeshGenerator::emitQuad(
 
   uint32_t baseVertex = static_cast<uint32_t>(vertices.size());
 
-  vertices.push_back({v0 * (float)VOXEL_SIZE * (float)size, {0, 0}, normal});
-  vertices.push_back({v1 * (float)VOXEL_SIZE * (float)size, {0, 0}, normal});
-  vertices.push_back({v2 * (float)VOXEL_SIZE * (float)size, {0, 0}, normal});
-  vertices.push_back({v3 * (float)VOXEL_SIZE * (float)size, {0, 0}, normal});
+  glm::vec2 uv0{0.0f, 0.0f};
+  glm::vec2 uv1;
+  glm::vec2 uv2;
+  glm::vec2 uv3;
+  if (axis == Axis::Y)
+  {
+    uv1 = {(float)width, 0.0f};
+    uv2 = {0.0f, (float)height};
+    uv3 = {(float)width, (float)height};
+  }
+  else
+  {
+    uv1 = {0.0f, (float)height};
+    uv2 = {(float)width, 0.0f};
+    uv3 = {(float)width, (float)height};
+  }
+
+  const float scale = (float)VOXEL_SIZE * (float)size;
+  vertices.push_back({v0 * scale, uv0, normal});
+  vertices.push_back({v1 * scale, uv1, normal});
+  vertices.push_back({v2 * scale, uv2, normal});
+  vertices.push_back({v3 * scale, uv3, normal});
 
   if (axisDirection == AxisDirection::Positive)
   {

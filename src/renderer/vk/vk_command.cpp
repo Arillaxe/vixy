@@ -26,10 +26,10 @@ vk::raii::CommandBuffers VkCommand::createCommandBuffers(uint32_t amount)
   return vk::raii::CommandBuffers(vkContext.getDevice(), allocInfo);
 }
 
-vk::raii::CommandBuffer VkCommand::beginSingleTimeCommands()
+vk::raii::CommandBuffer VkCommand::beginSingleTimeCommands(bool q)
 {
   vk::CommandBufferAllocateInfo allocInfo{
-      .commandPool = transferCommandPool,
+      .commandPool = q ? graphicsCommandPool : transferCommandPool,
       .level = vk::CommandBufferLevel::ePrimary,
       .commandBufferCount = 1,
   };
@@ -42,7 +42,7 @@ vk::raii::CommandBuffer VkCommand::beginSingleTimeCommands()
   return std::move(commandBuffer);
 }
 
-void VkCommand::endSingleTimeCommands(vk::raii::CommandBuffer &&commandBuffer)
+void VkCommand::endSingleTimeCommands(vk::raii::CommandBuffer &&commandBuffer, bool q)
 {
   commandBuffer.end();
 
@@ -51,6 +51,14 @@ void VkCommand::endSingleTimeCommands(vk::raii::CommandBuffer &&commandBuffer)
       .pCommandBuffers = &*commandBuffer,
   };
 
-  vkContext.getTransferQueue().submit(submitInfo, nullptr);
-  vkContext.getTransferQueue().waitIdle();
+  if (q)
+  {
+    vkContext.getQueue().submit(submitInfo, nullptr);
+    vkContext.getQueue().waitIdle();
+  }
+  else
+  {
+    vkContext.getTransferQueue().submit(submitInfo, nullptr);
+    vkContext.getTransferQueue().waitIdle();
+  }
 }

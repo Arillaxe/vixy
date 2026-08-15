@@ -36,12 +36,68 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<MeshAllo
 			indexBuffer(vkResource.createBuffer(INDEX_BUFFER_SIZE, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst)),
 			indexBufferMemory(vkResource.getBufferMemory(indexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
 			indirectBuffer(vkResource.createBuffer(MAX_DRAW_SIZE, vk::BufferUsageFlagBits::eIndirectBuffer)),
-			indirectBufferMemory(vkResource.getBufferMemory(indirectBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent))
+			indirectBufferMemory(vkResource.getBufferMemory(indirectBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
+			textureManager(vkResource),
+			sampler(createSampler())
 {
 	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 	{
 		vkSynchronization.emplace_back(vkContext);
 	}
+
+	auto &texture = textureManager.loadTexture("textures/dirt.png");
+	auto &descriptorSet = mainPipeline.getDescriptorSet();
+
+	vk::DescriptorImageInfo descriptorInfo{
+			.sampler = *sampler,
+			.imageView = *texture.view,
+			.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
+	};
+
+	vk::WriteDescriptorSet write{
+			.dstSet = *descriptorSet,
+			.dstBinding = 1,
+			.dstArrayElement = texture.id,
+			.descriptorCount = 1,
+			.descriptorType =
+					vk::DescriptorType::eCombinedImageSampler,
+			.pImageInfo = &descriptorInfo,
+	};
+
+	vkContext.getDevice().updateDescriptorSets(write, {});
+}
+
+vk::raii::Sampler Renderer::createSampler()
+{
+	vk::SamplerCreateInfo samplerInfo{
+			.magFilter = vk::Filter::eNearest,
+			.minFilter = vk::Filter::eNearest,
+
+			.mipmapMode = vk::SamplerMipmapMode::eNearest,
+
+			.addressModeU = vk::SamplerAddressMode::eRepeat,
+			.addressModeV = vk::SamplerAddressMode::eRepeat,
+			.addressModeW = vk::SamplerAddressMode::eRepeat,
+
+			.mipLodBias = 0.0f,
+
+			.anisotropyEnable = VK_FALSE,
+			.maxAnisotropy = 1.0f,
+
+			.compareEnable = VK_FALSE,
+
+			.minLod = 0.0f,
+			.maxLod = VK_LOD_CLAMP_NONE,
+
+			.borderColor = vk::BorderColor::eIntOpaqueBlack,
+
+			.unnormalizedCoordinates = VK_FALSE,
+	};
+
+	return vk::raii::Sampler{
+			vkContext.getDevice(),
+			samplerInfo,
+	};
 }
 
 void Renderer::transition_image_layout(
