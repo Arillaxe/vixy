@@ -38,6 +38,8 @@ private:
   std::unordered_set<glm::ivec2> getChunksAround(glm::vec3 &position);
 
 public:
+  void updateChunk(glm::ivec3 chunkPos);
+
   ChunkSystem(VkResource &resource, Camera &cam, World &w, ThreadQueue<MeshAllocation> &loadQueue, ThreadQueue<glm::ivec3> &unloadQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers);
 
   void run()

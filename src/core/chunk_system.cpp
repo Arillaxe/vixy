@@ -8,7 +8,7 @@
 
 namespace
 {
-  constexpr int VIEW_DISTANCE = 12;
+  constexpr int VIEW_DISTANCE = 24;
   constexpr int LOAD_DISTANCE = VIEW_DISTANCE + 1;
 
   constexpr std::array<glm::ivec3, 6> NEIGHBOR_OFFSETS = {{
@@ -182,4 +182,28 @@ void ChunkSystem::update()
   loadedChunks = desiredChunks;
 
   // std::cout << avgVerticesPerChunk << std::endl;
+}
+
+void ChunkSystem::updateChunk(glm::ivec3 chunkPos)
+{
+  auto *chunk = world.getChunk(chunkPos.x, chunkPos.y, chunkPos.z);
+
+  chunk->isMeshed = true;
+
+  auto mesh = chunkMeshGenerator.getChunkMesh(*chunk, 1);
+  auto it = meshAllocations.find(chunk->pos);
+  auto meshAllocation = meshAllocator.allocate(mesh.vertices, mesh.indices);
+  meshAllocation.pos = chunk->pos;
+
+  if (it != meshAllocations.end())
+  {
+    meshAllocator.free(it->second);
+    it->second = meshAllocation;
+  }
+  else
+  {
+    meshAllocations.emplace(chunk->pos, meshAllocation);
+  }
+
+  loadQueue.push(std::move(meshAllocation));
 }

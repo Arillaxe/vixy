@@ -2,6 +2,7 @@ struct VSInput {
     float3 inPosition;
     float2 inTexCoord;
     float3 normal;
+    uint32_t textureId;
 };
 
 struct UniformBuffer {
@@ -16,6 +17,7 @@ struct VSOutput {
     float4 pos : SV_Position;
     float2 fragTexCoord;
     float4 color;
+    uint32_t textureId;
 };
 
 struct PushConstants {
@@ -35,15 +37,16 @@ VSOutput vertMain(VSInput input, uint vertexId: SV_VertexID) {
     output.pos = mul(ubo.proj, mul(ubo.view, mul(push.model, float4(input.inPosition, 1))));
     output.fragTexCoord = input.inTexCoord;
     output.color = max(dot(input.normal, sunDir), 0.2);
+    output.textureId = input.textureId;
+
+    if (input.textureId == 1 && input.normal.y == 0) {
+        output.textureId = 3;
+    }
 
     return output;
 }
 
 [shader("fragment")]
 float4 fragMain(VSOutput vertIn) : SV_Target {
-    return textures[0].Sample(vertIn.fragTexCoord) * vertIn.color;
-    // return vertIn.color;
-
-
-    // return texture.Sample(vertIn.fragTexCoord);
+    return textures[vertIn.textureId - 1].Sample(vertIn.fragTexCoord) * vertIn.color;
 }

@@ -103,8 +103,12 @@ public:
           if (chunk)
           {
             chunk->isMeshed = false;
+
+            chunkSystem.updateChunk({chunkX + direction.x, chunkY + direction.y, chunkZ + direction.z});
           }
         }
+
+        chunkSystem.updateChunk({chunkX, chunkY, chunkZ});
       }
     }
     else if (glfwGetMouseButton(window.getGLFWWindowHandle(), GLFW_MOUSE_BUTTON_1) == GLFW_RELEASE)

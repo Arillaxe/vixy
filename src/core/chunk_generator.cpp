@@ -92,7 +92,12 @@ Chunk ChunkGenerator::generateChunk(int chunkX, int chunkY, int chunkZ)
 
         Voxel &voxel = chunk.getVoxel(localX, localY, localZ);
 
-        if (worldY <= worldHeight)
+        if (worldY < worldHeight)
+        {
+          voxel.type = 2;
+          ++chunk.voxelCount;
+        }
+        else if (worldY == worldHeight)
         {
           voxel.type = 1;
           ++chunk.voxelCount;

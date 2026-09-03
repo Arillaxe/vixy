@@ -38,8 +38,8 @@ class ChunkMeshGenerator
 {
   World &world;
 
-  BinaryGrids getBinaryGrids(Chunk &chunk);
-  BinaryGrid getAxisFaces(BinaryGrid &occupancy, bool positive);
+  BinaryGrids getBinaryGrids(Chunk &chunk, uint32_t material); // material 0 = any solid
+  BinaryGrid getAxisFaces(BinaryGrid &material, BinaryGrid &solid, bool positive);
   BinaryGrid swizzleFaces(BinaryGrid &axisFaces);
   void emitQuad(
       Axis axis,
@@ -52,7 +52,7 @@ class ChunkMeshGenerator
       glm::ivec3 &chunkPos,
       std::vector<Vertex> &vertices,
       std::vector<uint32_t> &indices,
-      int size);
+      int size, uint32_t material);
   void greedyMeshFaces(
       BinaryGrid &swizzledFaces,
       Axis axis,
@@ -60,7 +60,7 @@ class ChunkMeshGenerator
       glm::ivec3 &chunkPos,
       std::vector<Vertex> &vertices,
       std::vector<uint32_t> &indices,
-      int size);
+      int size, uint32_t material);
 
 public:
   ChunkMeshGenerator(World &w);

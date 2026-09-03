@@ -26,7 +26,7 @@ vk::VertexInputBindingDescription Vk_Pipeline::getBindingDescription()
   };
 }
 
-std::array<vk::VertexInputAttributeDescription, 3> Vk_Pipeline::getAttributeDescription()
+std::array<vk::VertexInputAttributeDescription, 4> Vk_Pipeline::getAttributeDescription()
 {
   return {{
       {
@@ -46,6 +46,12 @@ std::array<vk::VertexInputAttributeDescription, 3> Vk_Pipeline::getAttributeDesc
           .binding = 0,
           .format = vk::Format::eR32G32B32Sfloat,
           .offset = offsetof(Vertex, normal),
+      },
+      {
+          .location = 3,
+          .binding = 0,
+          .format = vk::Format::eR32Uint,
+          .offset = offsetof(Vertex, textureId),
       },
   }};
 }

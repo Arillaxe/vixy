@@ -45,7 +45,14 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<MeshAllo
 		vkSynchronization.emplace_back(vkContext);
 	}
 
-	auto &texture = textureManager.loadTexture("textures/dirt.png");
+	loadTexture("textures/grass.png");
+	loadTexture("textures/dirt.png");
+	loadTexture("textures/dirt_grass.png");
+}
+
+void Renderer::loadTexture(const std::string &filename)
+{
+	auto &texture = textureManager.loadTexture(filename);
 	auto &descriptorSet = mainPipeline.getDescriptorSet();
 
 	vk::DescriptorImageInfo descriptorInfo{
@@ -202,7 +209,7 @@ void Renderer::render()
 			vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
 			vk::ImageAspectFlagBits::eDepth);
 
-	vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
+	vk::ClearValue clearColor = vk::ClearColorValue(0.49f, 0.70f, 1.00f, 1.0f);
 	vk::ClearValue clearDepth = vk::ClearDepthStencilValue(1.0f, 0);
 
 	vk::RenderingAttachmentInfo attachmentInfo = {
@@ -331,7 +338,7 @@ void Renderer::render()
 
 	gui.beginFrame();
 
-	drawGUI();
+	// drawGUI();
 
 	gui.endFrame(commandBuffer);
 
