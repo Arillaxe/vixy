@@ -63,11 +63,12 @@ public:
 
   void gameplay()
   {
-    static bool wasPressed = false;
+    static bool leftPressed = false;
+    static bool rightPressed = false;
 
-    if (glfwGetMouseButton(window.getGLFWWindowHandle(), GLFW_MOUSE_BUTTON_1) == GLFW_PRESS && !wasPressed)
+    if (glfwGetMouseButton(window.getGLFWWindowHandle(), GLFW_MOUSE_BUTTON_1) == GLFW_PRESS && !leftPressed)
     {
-      wasPressed = true;
+      leftPressed = true;
 
       glm::vec3 forward = camera.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
 
@@ -111,9 +112,69 @@ public:
         chunkSystem.updateChunk({chunkX, chunkY, chunkZ});
       }
     }
-    else if (glfwGetMouseButton(window.getGLFWWindowHandle(), GLFW_MOUSE_BUTTON_1) == GLFW_RELEASE)
+    else if (glfwGetMouseButton(window.getGLFWWindowHandle(), GLFW_MOUSE_BUTTON_2) == GLFW_PRESS && !rightPressed)
     {
-      wasPressed = false;
+      rightPressed = true;
+
+      glm::vec3 forward = camera.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+
+      auto hit = raycast(world, camera.position, forward, 8.0f);
+
+      if (hit.hit)
+      {
+        const int chunkX = floorDiv(hit.previousVoxel.x, CHUNK_SIZE);
+        const int chunkY = floorDiv(hit.previousVoxel.y, CHUNK_SIZE);
+        const int chunkZ = floorDiv(hit.previousVoxel.z, CHUNK_SIZE);
+
+        auto *chunk = world.getChunk(chunkX, chunkY, chunkZ);
+
+        if (!chunk)
+        {
+          world.createEmptyChunk(chunkX, chunkY, chunkZ);
+        }
+
+        world.getVoxel(hit.previousVoxel.x,
+                       hit.previousVoxel.y,
+                       hit.previousVoxel.z)
+            ->type = 1;
+
+        std::vector<glm::ivec3> directions = {
+            {1, 0, 0},
+            {-1, 0, 0},
+            {0, 1, 0},
+            {0, -1, 0},
+            {0, 0, 1},
+            {0, 0, -1},
+        };
+
+        chunk = world.getChunk(chunkX, chunkY, chunkZ);
+
+        chunk->isMeshed = false;
+
+        for (auto &direction : directions)
+        {
+          auto *chunk = world.getChunk(chunkX + direction.x, chunkY + direction.y, chunkZ + direction.z);
+
+          if (chunk)
+          {
+            chunk->isMeshed = false;
+
+            chunkSystem.updateChunk({chunkX + direction.x, chunkY + direction.y, chunkZ + direction.z});
+          }
+        }
+
+        chunkSystem.updateChunk({chunkX, chunkY, chunkZ});
+      }
+    }
+
+    if (glfwGetMouseButton(window.getGLFWWindowHandle(), GLFW_MOUSE_BUTTON_1) == GLFW_RELEASE)
+    {
+      leftPressed = false;
+    }
+
+    if (glfwGetMouseButton(window.getGLFWWindowHandle(), GLFW_MOUSE_BUTTON_2) == GLFW_RELEASE)
+    {
+      rightPressed = false;
     }
   }
 

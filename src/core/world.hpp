@@ -25,6 +25,7 @@ public:
   std::vector<Chunk *> getRenderChunks(int x, int z);
   Chunk *getChunk(int x, int y, int z);
   Voxel *getVoxel(int x, int y, int z);
+  void createEmptyChunk(int x, int y, int z);
 };
 
 #endif // WORLD_HPP

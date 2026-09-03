@@ -11,7 +11,7 @@
 #include <renderer/mesh_allocator.hpp>
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-constexpr int MAX_DRAW_SIZE = sizeof(vk::DrawIndirectCommand) * 1000;
+constexpr int MAX_DRAW_SIZE = sizeof(vk::DrawIndirectCommand) * 100000;
 
 Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<MeshAllocation> &lQueue, ThreadQueue<glm::ivec3> &uQueue)
 		: window(win),

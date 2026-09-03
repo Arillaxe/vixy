@@ -96,3 +96,31 @@ Chunk *World::getChunk(int x, int y, int z)
 
   return &chunkIt->second;
 }
+
+void World::createEmptyChunk(int x, int y, int z)
+{
+  glm::ivec3 pos{x, y, z};
+
+  auto chunkIt = chunks.find(pos);
+
+  if (chunkIt != chunks.end())
+  {
+    return;
+  }
+
+  Chunk emptyChunk;
+  emptyChunk.pos = pos;
+
+  for (int i = 0; i < CHUNK_SIZE; i++)
+  {
+    for (int j = 0; j < CHUNK_SIZE; j++)
+    {
+      for (int k = 0; k < CHUNK_SIZE; k++)
+      {
+        emptyChunk.getVoxel(i, j, k) = {0};
+      }
+    }
+  }
+
+  chunks.emplace(pos, std::move(emptyChunk));
+}
