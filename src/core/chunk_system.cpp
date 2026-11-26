@@ -4,6 +4,7 @@
 #include <core/chunk.hpp>
 #include <core/voxel.hpp>
 #include <core/chunk_mesh.hpp>
+#include <core/raycast.hpp>
 #include <iostream>
 
 namespace
@@ -43,15 +44,125 @@ namespace
   }
 } // namespace
 
-ChunkSystem::ChunkSystem(VkResource &resource, Camera &cam, World &w, ThreadQueue<MeshAllocation> &lQueue, ThreadQueue<glm::ivec3> &uQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> b)
+ChunkSystem::ChunkSystem(VkResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<MeshAllocation> &lQueue, ThreadQueue<glm::ivec3> &uQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> b)
     : vkResource(resource),
-      camera(cam),
-      loadQueue(lQueue),
-      unloadQueue(uQueue),
       world(w),
       chunkMeshGenerator(w),
+      loadQueue(lQueue),
+      unloadQueue(uQueue),
+      viewerPosition(initialViewerPosition),
       buffers(b),
       meshAllocator(vkResource, buffers.first, buffers.second) {}
+
+void ChunkSystem::run()
+{
+  constexpr auto tickInterval = std::chrono::milliseconds(16);
+
+  auto nextTick = std::chrono::steady_clock::now();
+
+  while (!shouldClose)
+  {
+    processEdits();
+
+    if (std::chrono::steady_clock::now() >= nextTick)
+    {
+      auto tickStart = std::chrono::steady_clock::now();
+
+      update();
+
+      nextTick = tickStart + tickInterval;
+    }
+
+    // Sleep until the next tick, but wake early for a new edit or close().
+    std::unique_lock lock(wakeMutex);
+    wakeCondition.wait_until(lock, nextTick, [this]
+                             { return wakeRequested || shouldClose; });
+    wakeRequested = false;
+  }
+}
+
+void ChunkSystem::close()
+{
+  shouldClose = true;
+  wake();
+}
+
+void ChunkSystem::wake()
+{
+  {
+    std::lock_guard lock(wakeMutex);
+    wakeRequested = true;
+  }
+
+  wakeCondition.notify_one();
+}
+
+void ChunkSystem::pushEdit(BlockEdit edit)
+{
+  editQueue.push(std::move(edit));
+  wake();
+}
+
+void ChunkSystem::processEdits()
+{
+  BlockEdit edit{};
+
+  while (editQueue.tryPop(edit))
+  {
+    applyEdit(edit);
+  }
+}
+
+void ChunkSystem::setViewerPosition(const glm::vec3 &position)
+{
+  std::lock_guard lock(viewerMutex);
+  viewerPosition = position;
+}
+
+glm::vec3 ChunkSystem::getViewerPosition()
+{
+  std::lock_guard lock(viewerMutex);
+  return viewerPosition;
+}
+
+void ChunkSystem::applyEdit(const BlockEdit &edit)
+{
+  constexpr float MAX_REACH = 8.0f;
+
+  auto hit = raycast(world, edit.origin, edit.direction, MAX_REACH);
+
+  if (!hit.hit)
+    return;
+
+  const bool isBreak = edit.action == BlockEdit::Action::Break;
+  const glm::ivec3 voxelPos = isBreak ? hit.voxel : hit.previousVoxel;
+
+  const glm::ivec3 chunkPos{
+      floorDiv(voxelPos.x, CHUNK_SIZE),
+      floorDiv(voxelPos.y, CHUNK_SIZE),
+      floorDiv(voxelPos.z, CHUNK_SIZE),
+  };
+
+  if (!isBreak)
+    world.createEmptyChunk(chunkPos.x, chunkPos.y, chunkPos.z);
+
+  Voxel *voxel = world.getVoxel(voxelPos.x, voxelPos.y, voxelPos.z);
+
+  if (!voxel)
+    return;
+
+  voxel->type = isBreak ? 0 : 1;
+
+  for (const auto &offset : NEIGHBOR_OFFSETS)
+  {
+    const glm::ivec3 neighborPos = chunkPos + offset;
+
+    if (world.getChunk(neighborPos.x, neighborPos.y, neighborPos.z))
+      updateChunk(neighborPos);
+  }
+
+  updateChunk(chunkPos);
+}
 
 std::unordered_set<glm::ivec2> ChunkSystem::getChunksAround(glm::vec3 &position)
 {
@@ -83,8 +194,7 @@ void ChunkSystem::update()
 {
   // static int avgVerticesPerChunk = 0;
 
-  glm::vec3 &cameraPosition = camera.position;
-  // glm::vec3 cameraPosition = glm::vec3(0, 0, 0);
+  glm::vec3 cameraPosition = getViewerPosition();
 
   constexpr int chunkWorldSize = CHUNK_SIZE * VOXEL_SIZE;
   int centerX = floorDiv((int)cameraPosition.x, chunkWorldSize);
@@ -96,6 +206,10 @@ void ChunkSystem::update()
 
   for (auto &coord : desiredChunks)
   {
+    // A full pass over every column is slow, so apply pending block edits
+    // between columns instead of making them wait for the whole pass.
+    processEdits();
+
     world.loadChunk(coord.x, coord.y);
 
     if (!loadedChunks.contains(coord))
@@ -118,6 +232,8 @@ void ChunkSystem::update()
 
   for (auto &coord : desiredChunks)
   {
+    processEdits();
+
     auto yChunks = world.getRenderChunks(coord.x, coord.y);
 
     for (auto *chunk : yChunks)
