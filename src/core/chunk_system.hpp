@@ -1,11 +1,12 @@
 #ifndef CHUNK_SYSTEM_HPP
 #define CHUNK_SYSTEM_HPP
 
-#include <core/camera.hpp>
 #include <core/thread_queue.hpp>
 #include <core/world.hpp>
 #include <core/chunk_mesh_generator.hpp>
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 #include <chrono>
 #include <renderer/vk/vk_resource.hpp>
@@ -19,47 +20,68 @@ struct IVec2Hash
   }
 };
 
+// A block break/place request from the main thread. The chunk thread runs the
+// raycast itself, because it is the only thread allowed to read the World.
+struct BlockEdit
+{
+  enum class Action
+  {
+    Break,
+    Place,
+  };
+
+  Action action;
+  glm::vec3 origin;
+  glm::vec3 direction;
+};
+
+// Runs on its own thread and is the sole owner of the World, the MeshAllocator
+// and the mesh allocations. Other threads interact with it only through
+// pushEdit(), setViewerPosition() and the load/unload queues.
 class ChunkSystem
 {
 private:
   VkResource &vkResource;
-  Camera &camera;
   World &world;
   ChunkMeshGenerator chunkMeshGenerator;
   ThreadQueue<MeshAllocation> &loadQueue;
   ThreadQueue<glm::ivec3> &unloadQueue;
+  ThreadQueue<BlockEdit> editQueue;
   std::atomic<bool> shouldClose = false;
+  std::mutex wakeMutex;
+  std::condition_variable wakeCondition;
+  bool wakeRequested = false; // guarded by wakeMutex
+  std::mutex viewerMutex;
+  glm::vec3 viewerPosition;
   std::unordered_map<glm::ivec3, MeshAllocation> meshAllocations;
   std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers;
   MeshAllocator meshAllocator;
   std::unordered_set<glm::ivec2> loadedChunks;
 
   void update();
+  void wake();
+  void processEdits();
+  void applyEdit(const BlockEdit &edit);
+  void updateChunk(glm::ivec3 chunkPos);
+  glm::vec3 getViewerPosition();
   std::unordered_set<glm::ivec2> getChunksAround(glm::vec3 &position);
 
 public:
-  void updateChunk(glm::ivec3 chunkPos);
+  ChunkSystem(VkResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<MeshAllocation> &loadQueue, ThreadQueue<glm::ivec3> &unloadQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers);
 
-  ChunkSystem(VkResource &resource, Camera &cam, World &w, ThreadQueue<MeshAllocation> &loadQueue, ThreadQueue<glm::ivec3> &unloadQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers);
+  // Thread-safe. Queues a block edit and wakes the chunk thread, which applies
+  // it within about a millisecond, even in the middle of a streaming pass.
+  void pushEdit(BlockEdit edit);
 
-  void run()
-  {
-    constexpr auto tickInterval = std::chrono::milliseconds(16);
+  // Thread-safe. Sets the position chunks are streamed around.
+  void setViewerPosition(const glm::vec3 &position);
 
-    while (!shouldClose)
-    {
-      auto tickStart = std::chrono::steady_clock::now();
+  // Thread entry point. Streams chunks every tick and applies block edits as
+  // soon as they arrive, including in the middle of a streaming pass.
+  void run();
 
-      update();
-
-      std::this_thread::sleep_until(tickStart + tickInterval);
-    }
-  }
-
-  void close()
-  {
-    shouldClose = true;
-  }
+  // Thread-safe. Asks run() to return as soon as possible.
+  void close();
 };
 
 #endif // CHUNK_SYSTEM_HPP

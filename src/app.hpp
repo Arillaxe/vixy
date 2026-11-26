@@ -15,8 +15,6 @@
 #include <core/thread_queue.hpp>
 #include <thread>
 #include <core/chunk_system.hpp>
-#include <core/raycast.hpp>
-#include <core/math.hpp>
 #include <renderer/mesh_allocator.hpp>
 
 class App
@@ -45,7 +43,7 @@ public:
         input(window, camera),
         world(123456u),
         renderer(window, scene, camera, loadQueue, unloadQueue),
-        chunkSystem(renderer.getVkResource(), camera, world, loadQueue, unloadQueue, renderer.getBuffers()),
+        chunkSystem(renderer.getVkResource(), camera.position, world, loadQueue, unloadQueue, renderer.getBuffers()),
         robotMesh(renderer.getVkResource(), "./models/robot.gltf")
   {
     Entity object("object");
@@ -66,116 +64,40 @@ public:
     static bool leftPressed = false;
     static bool rightPressed = false;
 
-    if (glfwGetMouseButton(window.getGLFWWindowHandle(), GLFW_MOUSE_BUTTON_1) == GLFW_PRESS && !leftPressed)
+    GLFWwindow *handle = window.getGLFWWindowHandle();
+
+    if (glfwGetMouseButton(handle, GLFW_MOUSE_BUTTON_1) == GLFW_PRESS && !leftPressed)
     {
       leftPressed = true;
-
-      glm::vec3 forward = camera.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
-
-      auto hit = raycast(world, camera.position, forward, 8.0f);
-
-      if (hit.hit)
-      {
-        world.getVoxel(hit.voxel.x,
-                       hit.voxel.y,
-                       hit.voxel.z)
-            ->type = 0;
-        const int chunkX = floorDiv(hit.voxel.x, CHUNK_SIZE);
-        const int chunkY = floorDiv(hit.voxel.y, CHUNK_SIZE);
-        const int chunkZ = floorDiv(hit.voxel.z, CHUNK_SIZE);
-
-        std::vector<glm::ivec3> directions = {
-            {1, 0, 0},
-            {-1, 0, 0},
-            {0, 1, 0},
-            {0, -1, 0},
-            {0, 0, 1},
-            {0, 0, -1},
-        };
-
-        auto *chunk = world.getChunk(chunkX, chunkY, chunkZ);
-
-        chunk->isMeshed = false;
-
-        for (auto &direction : directions)
-        {
-          auto *chunk = world.getChunk(chunkX + direction.x, chunkY + direction.y, chunkZ + direction.z);
-
-          if (chunk)
-          {
-            chunk->isMeshed = false;
-
-            chunkSystem.updateChunk({chunkX + direction.x, chunkY + direction.y, chunkZ + direction.z});
-          }
-        }
-
-        chunkSystem.updateChunk({chunkX, chunkY, chunkZ});
-      }
+      pushBlockEdit(BlockEdit::Action::Break);
     }
-    else if (glfwGetMouseButton(window.getGLFWWindowHandle(), GLFW_MOUSE_BUTTON_2) == GLFW_PRESS && !rightPressed)
+    else if (glfwGetMouseButton(handle, GLFW_MOUSE_BUTTON_2) == GLFW_PRESS && !rightPressed)
     {
       rightPressed = true;
-
-      glm::vec3 forward = camera.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
-
-      auto hit = raycast(world, camera.position, forward, 8.0f);
-
-      if (hit.hit)
-      {
-        const int chunkX = floorDiv(hit.previousVoxel.x, CHUNK_SIZE);
-        const int chunkY = floorDiv(hit.previousVoxel.y, CHUNK_SIZE);
-        const int chunkZ = floorDiv(hit.previousVoxel.z, CHUNK_SIZE);
-
-        auto *chunk = world.getChunk(chunkX, chunkY, chunkZ);
-
-        if (!chunk)
-        {
-          world.createEmptyChunk(chunkX, chunkY, chunkZ);
-        }
-
-        world.getVoxel(hit.previousVoxel.x,
-                       hit.previousVoxel.y,
-                       hit.previousVoxel.z)
-            ->type = 1;
-
-        std::vector<glm::ivec3> directions = {
-            {1, 0, 0},
-            {-1, 0, 0},
-            {0, 1, 0},
-            {0, -1, 0},
-            {0, 0, 1},
-            {0, 0, -1},
-        };
-
-        chunk = world.getChunk(chunkX, chunkY, chunkZ);
-
-        chunk->isMeshed = false;
-
-        for (auto &direction : directions)
-        {
-          auto *chunk = world.getChunk(chunkX + direction.x, chunkY + direction.y, chunkZ + direction.z);
-
-          if (chunk)
-          {
-            chunk->isMeshed = false;
-
-            chunkSystem.updateChunk({chunkX + direction.x, chunkY + direction.y, chunkZ + direction.z});
-          }
-        }
-
-        chunkSystem.updateChunk({chunkX, chunkY, chunkZ});
-      }
+      pushBlockEdit(BlockEdit::Action::Place);
     }
 
-    if (glfwGetMouseButton(window.getGLFWWindowHandle(), GLFW_MOUSE_BUTTON_1) == GLFW_RELEASE)
+    if (glfwGetMouseButton(handle, GLFW_MOUSE_BUTTON_1) == GLFW_RELEASE)
     {
       leftPressed = false;
     }
 
-    if (glfwGetMouseButton(window.getGLFWWindowHandle(), GLFW_MOUSE_BUTTON_2) == GLFW_RELEASE)
+    if (glfwGetMouseButton(handle, GLFW_MOUSE_BUTTON_2) == GLFW_RELEASE)
     {
       rightPressed = false;
     }
+  }
+
+  // The chunk thread owns the World, so it performs the raycast and the edit.
+  void pushBlockEdit(BlockEdit::Action action)
+  {
+    glm::vec3 forward = camera.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+
+    chunkSystem.pushEdit({
+        .action = action,
+        .origin = camera.position,
+        .direction = forward,
+    });
   }
 
   void run()
@@ -184,6 +106,7 @@ public:
     {
       window.pollEvents();
       input.pollEvents();
+      chunkSystem.setViewerPosition(camera.position);
       gameplay();
       renderer.render();
     }
