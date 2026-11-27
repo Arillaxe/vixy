@@ -10,7 +10,6 @@
 #include <core/frustum_culler.hpp>
 #include <renderer/mesh_allocator.hpp>
 
-constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr uint32_t MAX_DRAW_COUNT = 100000;
 constexpr vk::DeviceSize MAX_DRAW_SIZE = sizeof(vk::DrawIndexedIndirectCommand) * MAX_DRAW_COUNT;
 
@@ -35,7 +34,7 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMes
 			vertexBufferMemory(vkResource.getBufferMemory(vertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
 			indexBuffer(vkResource.createBuffer(INDEX_BUFFER_SIZE, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst)),
 			indexBufferMemory(vkResource.getBufferMemory(indexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
-			indirectBuffer(vkResource.createBuffer(MAX_DRAW_SIZE, vk::BufferUsageFlagBits::eIndirectBuffer)),
+			indirectBuffer(vkResource.createBuffer(MAX_DRAW_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eIndirectBuffer)),
 			indirectBufferMemory(vkResource.getBufferMemory(indirectBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
 			textureManager(vkResource),
 			sampler(createSampler())
@@ -256,7 +255,7 @@ void Renderer::render()
 	commandBuffer.setPrimitiveTopology(vk::PrimitiveTopology::eTriangleList);
 
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mainPipeline.getPipeline());
-	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mainPipeline.getPipelineLayout(), 0, *mainPipeline.getDescriptorSet(), nullptr);
+	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mainPipeline.getPipelineLayout(), 0, *mainPipeline.getDescriptorSet(), mainPipeline.getVkUbo().getDynamicOffset(frameIndex));
 
 	for (auto &entity : entities)
 	{
@@ -306,7 +305,8 @@ void Renderer::render()
 	commandBuffer.bindVertexBuffers(0, *vertexBuffer, {0});
 	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexTypeValue<uint32_t>::value);
 	commandBuffer.pushConstants<PushConstants>(mainPipeline.getPipelineLayout(), vk::ShaderStageFlagBits::eVertex, 0, pushConstants);
-	auto indirectCommands = static_cast<vk::DrawIndexedIndirectCommand *>(indirectBufferMemory.mapMemory(0, MAX_DRAW_SIZE));
+	vk::DeviceSize indirectOffset = MAX_DRAW_SIZE * frameIndex;
+	auto indirectCommands = static_cast<vk::DrawIndexedIndirectCommand *>(indirectBufferMemory.mapMemory(indirectOffset, MAX_DRAW_SIZE));
 
 	uint32_t commandId = 0;
 
@@ -334,7 +334,7 @@ void Renderer::render()
 
 	indirectBufferMemory.unmapMemory();
 
-	commandBuffer.drawIndexedIndirect(*indirectBuffer, 0, commandId, sizeof(vk::DrawIndexedIndirectCommand));
+	commandBuffer.drawIndexedIndirect(*indirectBuffer, indirectOffset, commandId, sizeof(vk::DrawIndexedIndirectCommand));
 
 	// GUI
 
@@ -365,7 +365,7 @@ void Renderer::render()
 
 	// vkContext.getDevice().waitIdle();
 
-	mainPipeline.getVkUbo().updateUniformBuffer(camera);
+	mainPipeline.getVkUbo().updateUniformBuffer(camera, frameIndex);
 
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 	const vk::SubmitInfo submitInfo{

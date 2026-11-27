@@ -11,4 +11,6 @@ constexpr bool enableValidationLayers = false;
 constexpr bool enableValidationLayers = true;
 #endif
 
+constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
+
 #endif // VK_HPP

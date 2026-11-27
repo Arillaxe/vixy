@@ -140,7 +140,7 @@ vk::raii::DescriptorSetLayout MainPipeline::createDescriptorSetLayout()
   std::array<vk::DescriptorSetLayoutBinding, 2> bindings{{
       {
           .binding = 0,
-          .descriptorType = vk::DescriptorType::eUniformBuffer,
+          .descriptorType = vk::DescriptorType::eUniformBufferDynamic,
           .descriptorCount = 1,
           .stageFlags = vk::ShaderStageFlagBits::eVertex,
       },
@@ -193,7 +193,7 @@ vk::raii::DescriptorSet MainPipeline::createDescriptorSet()
           .dstBinding = 0,
           .dstArrayElement = 0,
           .descriptorCount = 1,
-          .descriptorType = vk::DescriptorType::eUniformBuffer,
+          .descriptorType = vk::DescriptorType::eUniformBufferDynamic,
           .pBufferInfo = &bufferInfo,
       },
   }};

@@ -12,17 +12,20 @@ private:
   VkContext &vkContext;
   VkResource &vkResource;
   VkSwapchain &vkSwapchain;
+  vk::DeviceSize frameStride;
   vk::raii::Buffer uniformBuffer;
   vk::raii::DeviceMemory uniformBufferMemory;
   void *uniformBufferMapped;
+
+  vk::DeviceSize computeFrameStride();
 
 public:
   VkUbo(VkContext &context, VkResource &resource, VkSwapchain &swapchain);
 
   vk::raii::Buffer &getUniformBuffer() { return uniformBuffer; }
-  void *getUnitformBufferMapped() { return uniformBufferMapped; }
+  uint32_t getDynamicOffset(uint32_t frameIndex) const { return static_cast<uint32_t>(frameStride * frameIndex); }
 
-  void updateUniformBuffer(Camera &camera);
+  void updateUniformBuffer(Camera &camera, uint32_t frameIndex);
 };
 
 #endif // VK_UBO_HPP
