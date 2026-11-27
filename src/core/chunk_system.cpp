@@ -3,6 +3,7 @@
 #include <core/math.hpp>
 #include <core/chunk.hpp>
 #include <core/voxel.hpp>
+#include <core/block.hpp>
 #include <core/chunk_mesh.hpp>
 #include <core/raycast.hpp>
 #include <iostream>
@@ -182,7 +183,7 @@ void ChunkSystem::applyEdit(const BlockEdit &edit)
   if (!voxel)
     return;
 
-  voxel->type = isBreak ? 0 : 1;
+  voxel->type = isBreak ? BLOCK_AIR : BLOCK_GRASS;
 
   for (const auto &offset : NEIGHBOR_OFFSETS)
   {

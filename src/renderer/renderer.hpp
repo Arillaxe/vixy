@@ -71,7 +71,7 @@ public:
   vk::raii::Buffer &getIndexBuffer() { return indexBuffer; }
   vk::raii::Sampler createSampler();
 
-  void loadTexture(const std::string &filename);
+  uint32_t loadTexture(const std::string &filename);
   void render();
   void waitIdle();
   void drawGUI();

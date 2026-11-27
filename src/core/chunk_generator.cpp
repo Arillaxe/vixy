@@ -1,5 +1,6 @@
 #include <core/chunk_generator.hpp>
 #include <core/voxel.hpp>
+#include <core/block.hpp>
 #include <unordered_set>
 #include <core/math.hpp>
 
@@ -94,17 +95,17 @@ Chunk ChunkGenerator::generateChunk(int chunkX, int chunkY, int chunkZ)
 
         if (worldY < worldHeight)
         {
-          voxel.type = 2;
+          voxel.type = BLOCK_DIRT;
           ++chunk.voxelCount;
         }
         else if (worldY == worldHeight)
         {
-          voxel.type = 1;
+          voxel.type = BLOCK_GRASS;
           ++chunk.voxelCount;
         }
         else
         {
-          voxel.type = 0;
+          voxel.type = BLOCK_AIR;
         }
       }
     }

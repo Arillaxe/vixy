@@ -17,7 +17,7 @@ struct VSOutput {
     float4 pos : SV_Position;
     float2 fragTexCoord;
     float4 color;
-    uint32_t textureId;
+    nointerpolation uint32_t textureId;
 };
 
 struct PushConstants {
@@ -39,14 +39,10 @@ VSOutput vertMain(VSInput input, uint vertexId: SV_VertexID) {
     output.color = max(dot(input.normal, sunDir), 0.2);
     output.textureId = input.textureId;
 
-    if (input.textureId == 1 && input.normal.y == 0) {
-        output.textureId = 3;
-    }
-
     return output;
 }
 
 [shader("fragment")]
 float4 fragMain(VSOutput vertIn) : SV_Target {
-    return textures[vertIn.textureId - 1].Sample(vertIn.fragTexCoord) * vertIn.color;
+    return textures[NonUniformResourceIndex(vertIn.textureId)].Sample(vertIn.fragTexCoord) * vertIn.color;
 }

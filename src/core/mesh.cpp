@@ -5,6 +5,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include <core/mesh.hpp>
+#include <core/block.hpp>
 
 #include <cstring>
 #include <iostream>
@@ -63,6 +64,18 @@ std::vector<Vertex> Mesh::calcVerticies()
         texCoordBuffer = &model.buffers[texCoordBufferView->buffer];
       }
 
+      bool hasNormals = primitive.attributes.find("NORMAL") != primitive.attributes.end();
+      const tinygltf::Accessor *normalAccessor = nullptr;
+      const tinygltf::BufferView *normalBufferView = nullptr;
+      const tinygltf::Buffer *normalBuffer = nullptr;
+
+      if (hasNormals)
+      {
+        normalAccessor = &model.accessors[primitive.attributes.at("NORMAL")];
+        normalBufferView = &model.bufferViews[normalAccessor->bufferView];
+        normalBuffer = &model.buffers[normalBufferView->buffer];
+      }
+
       uint32_t baseVertex = static_cast<uint32_t>(vertices.size());
 
       for (size_t i = 0; i < posAccessor.count; i++)
@@ -81,6 +94,18 @@ std::vector<Vertex> Mesh::calcVerticies()
         {
           vertex.texCoord = {0.0f, 0.0f};
         }
+
+        if (hasNormals)
+        {
+          const float *normal = reinterpret_cast<const float *>(&normalBuffer->data[normalBufferView->byteOffset + normalAccessor->byteOffset + i * 12]);
+          vertex.normal = {normal[0], normal[1], normal[2]};
+        }
+        else
+        {
+          vertex.normal = {0.0f, 1.0f, 0.0f};
+        }
+
+        vertex.textureId = DEFAULT_MESH_TEXTURE;
 
         vertices.push_back(vertex);
       }

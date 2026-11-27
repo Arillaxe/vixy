@@ -43,6 +43,7 @@ void VkUbo::updateUniformBuffer(Camera &camera, uint32_t frameIndex)
       glm::translate(glm::mat4(1.0f), -camera.position);
   ubo.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(vkSwapchain.getExtent().width) / static_cast<float>(vkSwapchain.getExtent().height), 0.1f, 100000.0f);
   ubo.projection[1][1] *= -1;
+  ubo.cameraPosition = camera.position;
   ubo.deltaTime = deltaTime * 1000;
 
   memcpy(static_cast<char *>(uniformBufferMapped) + frameStride * frameIndex, &ubo, sizeof(ubo));

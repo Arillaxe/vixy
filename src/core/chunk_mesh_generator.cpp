@@ -1,5 +1,7 @@
 #include <core/chunk_mesh_generator.hpp>
 #include <bit>
+#include <cassert>
+#include <core/block.hpp>
 
 ChunkMeshGenerator::ChunkMeshGenerator(World &w) : world(w) {}
 
@@ -17,7 +19,7 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
       {
         auto &voxel = chunk.getVoxel(x, y, z);
 
-        if (voxel.type == 0)
+        if (voxel.type == BLOCK_AIR)
           continue;
         if (material != 0 && voxel.type != material)
           continue;
@@ -35,7 +37,7 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
     {
       for (int z = 0; z < CHUNK_SIZE; z++)
       {
-        if (east->getVoxel(0, y, z).type != 0)
+        if (east->getVoxel(0, y, z).type != BLOCK_AIR)
           grids.yz[y + 1][z + 1] |= (1u << (CHUNK_SIZE + 1));
       }
     }
@@ -47,7 +49,7 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
     {
       for (int z = 0; z < CHUNK_SIZE; z++)
       {
-        if (west->getVoxel(CHUNK_SIZE - 1, y, z).type != 0)
+        if (west->getVoxel(CHUNK_SIZE - 1, y, z).type != BLOCK_AIR)
           grids.yz[y + 1][z + 1] |= (1u << (0));
       }
     }
@@ -59,7 +61,7 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
     {
       for (int z = 0; z < CHUNK_SIZE; z++)
       {
-        if (top->getVoxel(x, 0, z).type != 0)
+        if (top->getVoxel(x, 0, z).type != BLOCK_AIR)
           grids.xz[x + 1][z + 1] |= (1u << (CHUNK_SIZE + 1));
       }
     }
@@ -71,7 +73,7 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
     {
       for (int z = 0; z < CHUNK_SIZE; z++)
       {
-        if (top->getVoxel(x, CHUNK_SIZE - 1, z).type != 0)
+        if (top->getVoxel(x, CHUNK_SIZE - 1, z).type != BLOCK_AIR)
           grids.xz[x + 1][z + 1] |= (1u << (0));
       }
     }
@@ -83,7 +85,7 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
     {
       for (int y = 0; y < CHUNK_SIZE; y++)
       {
-        if (north->getVoxel(x, y, 0).type != 0)
+        if (north->getVoxel(x, y, 0).type != BLOCK_AIR)
           grids.xy[x + 1][y + 1] |= (1u << (CHUNK_SIZE + 1));
       }
     }
@@ -95,7 +97,7 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
     {
       for (int y = 0; y < CHUNK_SIZE; y++)
       {
-        if (south->getVoxel(x, y, CHUNK_SIZE - 1).type != 0)
+        if (south->getVoxel(x, y, CHUNK_SIZE - 1).type != BLOCK_AIR)
           grids.xy[x + 1][y + 1] |= (1u << (0));
       }
     }
@@ -208,6 +210,12 @@ void ChunkMeshGenerator::emitQuad(
     normal *= -1;
   }
 
+  assert(material < BLOCK_TYPE_COUNT);
+  const BlockFaceTextures &faces = BLOCK_FACE_TEXTURES[material];
+  uint32_t textureId = axis != Axis::Y                          ? faces.side
+                       : axisDirection == AxisDirection::Positive ? faces.top
+                                                                  : faces.bottom;
+
   uint32_t baseVertex = static_cast<uint32_t>(vertices.size());
 
   glm::vec2 uv0;
@@ -241,10 +249,10 @@ void ChunkMeshGenerator::emitQuad(
   }
 
   const float scale = (float)VOXEL_SIZE * (float)size;
-  vertices.push_back({v0 * scale, uv0, normal, material});
-  vertices.push_back({v1 * scale, uv1, normal, material});
-  vertices.push_back({v2 * scale, uv2, normal, material});
-  vertices.push_back({v3 * scale, uv3, normal, material});
+  vertices.push_back({v0 * scale, uv0, normal, textureId});
+  vertices.push_back({v1 * scale, uv1, normal, textureId});
+  vertices.push_back({v2 * scale, uv2, normal, textureId});
+  vertices.push_back({v3 * scale, uv3, normal, textureId});
 
   if (axisDirection == AxisDirection::Positive)
   {
@@ -304,7 +312,7 @@ ChunkMesh ChunkMeshGenerator::getChunkMesh(Chunk &chunk, int size)
 
   BinaryGrids solid = getBinaryGrids(chunk, 0);
 
-  for (uint32_t material = 1; material <= 2; material++)
+  for (uint32_t material = BLOCK_AIR + 1; material < BLOCK_TYPE_COUNT; material++)
   {
     BinaryGrids occupancy = getBinaryGrids(chunk, material);
 

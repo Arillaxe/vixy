@@ -3,6 +3,8 @@
 
 #include <renderer/vk.hpp>
 
+constexpr uint32_t MAX_TEXTURES = 4096;
+
 struct Texture
 {
   vk::raii::Image image;

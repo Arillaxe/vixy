@@ -5,8 +5,6 @@ TextureManager::TextureManager(VkResource &resource) : vkResource(resource) {}
 
 Texture &TextureManager::loadTexture(const std::string &filename)
 {
-  static uint32_t id = 0;
-
   int width, height, channels;
 
   stbi_uc *data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
@@ -45,10 +43,12 @@ Texture &TextureManager::loadTexture(const std::string &filename)
 
   stbi_image_free(data);
 
+  uint32_t id = static_cast<uint32_t>(textures.size());
+
   return textures.emplace_back(Texture{
       std::move(image),
       std::move(memory),
       std::move(view),
-      id++,
+      id,
   });
 }
