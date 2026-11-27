@@ -30,6 +30,7 @@ private:
 
   std::thread chunkSystemThread;
   ThreadQueue<ChunkMeshMessage> meshQueue;
+  ThreadQueue<MeshAllocation> freeQueue;
 
   Renderer renderer;
   ChunkSystem chunkSystem;
@@ -41,8 +42,8 @@ public:
       : window(WIDTH, HEIGHT),
         input(window, camera),
         world(123456u),
-        renderer(window, scene, camera, meshQueue),
-        chunkSystem(renderer.getVkResource(), camera.position, world, meshQueue, renderer.getBuffers()),
+        renderer(window, scene, camera, meshQueue, freeQueue),
+        chunkSystem(renderer.getVkResource(), camera.position, world, meshQueue, freeQueue, renderer.getBuffers()),
         robotMesh(renderer.getVkResource(), "./models/robot.gltf")
   {
     Entity object("object");

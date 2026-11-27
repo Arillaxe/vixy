@@ -13,7 +13,7 @@
 constexpr uint32_t MAX_DRAW_COUNT = 100000;
 constexpr vk::DeviceSize MAX_DRAW_SIZE = sizeof(vk::DrawIndexedIndirectCommand) * MAX_DRAW_COUNT;
 
-Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMeshMessage> &mQueue)
+Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMeshMessage> &mQueue, ThreadQueue<MeshAllocation> &fQueue)
 		: window(win),
 			vkContext(win),
 			vkCommand(vkContext),
@@ -29,6 +29,7 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMes
 							.setQueryType(vk::QueryType::eTimestamp)
 							.setQueryCount(MAX_FRAMES_IN_FLIGHT * 2)),
 			meshQueue(mQueue),
+			freeQueue(fQueue),
 			gui(window, vkContext, vkResource, vkSwapchain),
 			vertexBuffer(vkResource.createBuffer(VERTEX_BUFFER_SIZE, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst)),
 			vertexBufferMemory(vkResource.getBufferMemory(vertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
@@ -151,6 +152,12 @@ void Renderer::render()
 	auto start = std::chrono::high_resolution_clock::now();
 
 	vkSynchronization[frameIndex].waitDrawFence();
+
+	for (auto &allocation : pendingFrees[frameIndex])
+		freeQueue.push(std::move(allocation));
+
+	pendingFrees[frameIndex].clear();
+
 	std::array<uint64_t, 2> timestamps{};
 
 	if (!first[frameIndex])
@@ -291,10 +298,20 @@ void Renderer::render()
 
 	while (meshQueue.tryPop(message))
 	{
+		glm::ivec3 pos = std::holds_alternative<ChunkMeshLoad>(message)
+												 ? std::get<ChunkMeshLoad>(message).allocation.pos
+												 : std::get<ChunkMeshUnload>(message).pos;
+
+		auto it = chunkMeshesAllocations.find(pos);
+
+		if (it != chunkMeshesAllocations.end())
+		{
+			pendingFrees[frameIndex].push_back(it->second);
+			chunkMeshesAllocations.erase(it);
+		}
+
 		if (auto *load = std::get_if<ChunkMeshLoad>(&message))
-			chunkMeshesAllocations.insert_or_assign(load->allocation.pos, load->allocation);
-		else
-			chunkMeshesAllocations.erase(std::get<ChunkMeshUnload>(message).pos);
+			chunkMeshesAllocations.emplace(pos, load->allocation);
 	}
 
 	totalIndices = 0;
