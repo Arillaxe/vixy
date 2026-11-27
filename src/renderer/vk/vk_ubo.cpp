@@ -1,6 +1,7 @@
 #include <renderer/vk/vk_ubo.hpp>
 
 #include <renderer/ubo.hpp>
+#include <cassert>
 #include <chrono>
 #include <cstring>
 #include <glm/gtc/matrix_transform.hpp>
@@ -9,12 +10,23 @@ VkUbo::VkUbo(VkContext &context, VkResource &resource, VkSwapchain &swapchain)
     : vkContext(context),
       vkResource(resource),
       vkSwapchain(swapchain),
-      uniformBuffer(vkResource.createBuffer(sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer)),
+      frameStride(computeFrameStride()),
+      uniformBuffer(vkResource.createBuffer(frameStride * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eUniformBuffer)),
       uniformBufferMemory(vkResource.getBufferMemory(uniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
-      uniformBufferMapped(uniformBufferMemory.mapMemory(0, sizeof(UniformBufferObject))) {}
+      uniformBufferMapped(uniformBufferMemory.mapMemory(0, frameStride * MAX_FRAMES_IN_FLIGHT)) {}
 
-void VkUbo::updateUniformBuffer(Camera &camera)
+vk::DeviceSize VkUbo::computeFrameStride()
 {
+  vk::DeviceSize alignment = vkContext.getPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment;
+  vk::DeviceSize size = sizeof(UniformBufferObject);
+
+  return (size + alignment - 1) / alignment * alignment;
+}
+
+void VkUbo::updateUniformBuffer(Camera &camera, uint32_t frameIndex)
+{
+  assert(frameIndex < MAX_FRAMES_IN_FLIGHT);
+
   static auto startTime = std::chrono::high_resolution_clock::now();
   static auto lastTime = startTime;
 
@@ -33,5 +45,5 @@ void VkUbo::updateUniformBuffer(Camera &camera)
   ubo.projection[1][1] *= -1;
   ubo.deltaTime = deltaTime * 1000;
 
-  memcpy(uniformBufferMapped, &ubo, sizeof(ubo));
+  memcpy(static_cast<char *>(uniformBufferMapped) + frameStride * frameIndex, &ubo, sizeof(ubo));
 }

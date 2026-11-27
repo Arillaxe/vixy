@@ -32,7 +32,7 @@ vk::raii::DescriptorPool VkResource::createDescriptorPool()
 {
   std::array<vk::DescriptorPoolSize, 4> poolSize{{
       {
-          .type = vk::DescriptorType::eUniformBuffer,
+          .type = vk::DescriptorType::eUniformBufferDynamic,
           .descriptorCount = 1,
       },
       {
