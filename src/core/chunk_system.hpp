@@ -37,7 +37,7 @@ struct BlockEdit
 
 // Runs on its own thread and is the sole owner of the World, the MeshAllocator
 // and the mesh allocations. Other threads interact with it only through
-// pushEdit(), setViewerPosition() and the mesh queue.
+// pushEdit(), setViewerPosition(), the mesh queue and the free queue.
 class ChunkSystem
 {
 private:
@@ -45,6 +45,7 @@ private:
   World &world;
   ChunkMeshGenerator chunkMeshGenerator;
   ThreadQueue<ChunkMeshMessage> &meshQueue;
+  ThreadQueue<MeshAllocation> &freeQueue;
   ThreadQueue<BlockEdit> editQueue;
   std::atomic<bool> shouldClose = false;
   std::mutex wakeMutex;
@@ -60,6 +61,7 @@ private:
   void update();
   void wake();
   void processEdits();
+  void processFrees();
   void applyEdit(const BlockEdit &edit);
   void updateChunk(glm::ivec3 chunkPos);
   void remeshChunk(Chunk &chunk);
@@ -67,7 +69,7 @@ private:
   std::unordered_set<glm::ivec2> getChunksAround(glm::vec3 &position);
 
 public:
-  ChunkSystem(VkResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<ChunkMeshMessage> &meshQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers);
+  ChunkSystem(VkResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<ChunkMeshMessage> &meshQueue, ThreadQueue<MeshAllocation> &freeQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers);
 
   // Thread-safe. Queues a block edit and wakes the chunk thread, which applies
   // it within about a millisecond, even in the middle of a streaming pass.

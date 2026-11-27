@@ -44,11 +44,12 @@ namespace
   }
 } // namespace
 
-ChunkSystem::ChunkSystem(VkResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<ChunkMeshMessage> &mQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> b)
+ChunkSystem::ChunkSystem(VkResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<ChunkMeshMessage> &mQueue, ThreadQueue<MeshAllocation> &fQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> b)
     : vkResource(resource),
       world(w),
       chunkMeshGenerator(w),
       meshQueue(mQueue),
+      freeQueue(fQueue),
       viewerPosition(initialViewerPosition),
       buffers(b),
       meshAllocator(vkResource, buffers.first, buffers.second) {}
@@ -102,8 +103,20 @@ void ChunkSystem::pushEdit(BlockEdit edit)
   wake();
 }
 
+void ChunkSystem::processFrees()
+{
+  MeshAllocation allocation{};
+
+  while (freeQueue.tryPop(allocation))
+  {
+    meshAllocator.free(allocation);
+  }
+}
+
 void ChunkSystem::processEdits()
 {
+  processFrees();
+
   BlockEdit edit{};
 
   while (editQueue.tryPop(edit))
@@ -193,6 +206,8 @@ void ChunkSystem::update()
 {
   // static int avgVerticesPerChunk = 0;
 
+  processFrees();
+
   glm::vec3 cameraPosition = getViewerPosition();
 
   constexpr int chunkWorldSize = CHUNK_SIZE * VOXEL_SIZE;
@@ -270,7 +285,6 @@ void ChunkSystem::update()
         if (meshAllocationNode.empty())
           continue;
 
-        meshAllocator.free(meshAllocationNode.mapped());
         meshQueue.push(ChunkMeshUnload{pos});
       }
     }
@@ -299,7 +313,6 @@ void ChunkSystem::remeshChunk(Chunk &chunk)
   {
     if (it != meshAllocations.end())
     {
-      meshAllocator.free(it->second);
       meshAllocations.erase(it);
       meshQueue.push(ChunkMeshUnload{chunk.pos});
     }
@@ -312,7 +325,6 @@ void ChunkSystem::remeshChunk(Chunk &chunk)
 
   if (it != meshAllocations.end())
   {
-    meshAllocator.free(it->second);
     it->second = meshAllocation;
   }
   else

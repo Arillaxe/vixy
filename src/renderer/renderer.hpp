@@ -33,6 +33,8 @@ private:
   vk::raii::QueryPool queryPool;
   std::unordered_map<glm::ivec3, MeshAllocation> chunkMeshesAllocations;
   ThreadQueue<ChunkMeshMessage> &meshQueue;
+  ThreadQueue<MeshAllocation> &freeQueue;
+  std::array<std::vector<MeshAllocation>, MAX_FRAMES_IN_FLIGHT> pendingFrees;
   GUI gui;
   uint32_t meshQueueSize;
   uint32_t totalIndices;
@@ -61,7 +63,7 @@ private:
       vk::ImageAspectFlags image_aspect_flags);
 
 public:
-  Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMeshMessage> &mQueue);
+  Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMeshMessage> &mQueue, ThreadQueue<MeshAllocation> &fQueue);
 
   VkResource &getVkResource() { return vkResource; }
   std::pair<vk::raii::Buffer &, vk::raii::Buffer &> getBuffers() { return {vertexBuffer, indexBuffer}; }
