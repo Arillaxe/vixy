@@ -37,14 +37,14 @@ A voxel terrain engine in C++20 on Vulkan 1.3 (vulkan-hpp RAII), using GLFW and 
 - **Units:** `VOXEL_SIZE = 10` world units per voxel and `CHUNK_SIZE = 16` voxels. Convert world positions to voxels by dividing by `VOXEL_SIZE`. Convert voxels to chunks with `floorDiv` / `floorMod` (`core/math.hpp`), never with `/` or `%`, because coordinates can be negative.
 - **Voxel index** inside a chunk: `x*256 + y*16 + z`.
 - **Block types:** 0 = air, 1 = grass, 2 = dirt. Texture slots depend on load order in `Renderer`'s constructor: 0 = grass, 1 = dirt, 2 = dirt_grass. The shader uses `textures[textureId - 1]` and hard-codes the side texture of grass (`textureId 1 && normal.y == 0 → 3`).
-- **Threads:** `ChunkSystem::run` runs on its own thread with a 16 ms tick. It generates terrain, meshes chunks, uploads them, and sends results to the renderer through `ThreadQueue<MeshAllocation> loadQueue` and `ThreadQueue<glm::ivec3> unloadQueue`. `Renderer::render()` drains both queues every frame. Block edits in `App::gameplay()` currently call `chunkSystem.updateChunk()` **directly from the main thread**. This is a known data race (#2).
+- **Threads:** `ChunkSystem::run` runs on its own thread with a 16 ms tick. It is the only owner of the `World`, the `MeshAllocator` and the mesh allocations. It generates terrain, meshes chunks, uploads them, and sends results to the renderer through one ordered `ThreadQueue<ChunkMeshMessage> meshQueue` (a variant of `ChunkMeshLoad` / `ChunkMeshUnload`). `Renderer::render()` drains it every frame. Other threads talk to the chunk thread only through `pushEdit()`, `setViewerPosition()` and the queues. Block edits in `App::gameplay()` are sent as `BlockEdit` requests through `pushEdit()`, and the chunk thread runs the raycast and remesh itself. Never touch the `World` or the `MeshAllocator` from the main thread.
 - **GPU memory:** the renderer owns one 64 MiB vertex buffer and one 32 MiB index buffer. All chunks are sub-allocated from them and drawn with a single `drawIndexedIndirect`, after CPU frustum culling.
 - **Terrain:** only chunks that contain the heightmap surface are generated. Solid chunks below the surface do not exist (#13).
 - `imgui.ini` is rewritten on every run. Don't commit changes to it.
 
 ## Known issues
 
-A full review is in `REVIEW.md`, and its findings are tracked as GitHub issues #2–#28 on `Arillaxe/vixy`, which is a public repo. Labels are `priority: *`, `area: *` and `performance`. Before fixing or refactoring something, check `gh issue list`; the work then follows the **Workflow** below. The critical issues (#2–#7) concern threading and GPU memory lifetime, so be careful when touching `chunk_system`, `mesh_allocator` or the renderer's queue handling.
+A full review is in `REVIEW.md`, and its findings are tracked as GitHub issues #2–#28 on `Arillaxe/vixy`, which is a public repo. Labels are `priority: *`, `area: *` and `performance`. Before fixing or refactoring something, check `gh issue list`; the work then follows the **Workflow** below. New issues have been filed since, so the numbers go past #28. The critical issues (#2–#7) concern threading and GPU memory lifetime. Most are fixed, but be careful when touching `chunk_system`, `mesh_allocator` or the renderer's queue handling.
 
 ## Workflow
 
