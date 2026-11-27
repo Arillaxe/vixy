@@ -5,6 +5,7 @@
 #include <renderer/push.hpp>
 #include <cassert>
 #include <core/chunk.hpp>
+#include <core/block.hpp>
 #include <iostream>
 #include <algorithm>
 #include <core/frustum_culler.hpp>
@@ -45,12 +46,14 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMes
 		vkSynchronization.emplace_back(vkContext);
 	}
 
-	loadTexture("textures/grass.png");
-	loadTexture("textures/dirt.png");
-	loadTexture("textures/dirt_grass.png");
+	for (uint32_t slot = 0; slot < BLOCK_TEXTURE_COUNT; slot++)
+	{
+		uint32_t id = loadTexture(BLOCK_TEXTURE_PATHS[slot]);
+		assert(id == slot);
+	}
 }
 
-void Renderer::loadTexture(const std::string &filename)
+uint32_t Renderer::loadTexture(const std::string &filename)
 {
 	auto &texture = textureManager.loadTexture(filename);
 	auto &descriptorSet = mainPipeline.getDescriptorSet();
@@ -72,6 +75,8 @@ void Renderer::loadTexture(const std::string &filename)
 	};
 
 	vkContext.getDevice().updateDescriptorSets(write, {});
+
+	return texture.id;
 }
 
 vk::raii::Sampler Renderer::createSampler()

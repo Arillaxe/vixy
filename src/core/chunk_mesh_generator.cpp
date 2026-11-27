@@ -1,5 +1,7 @@
 #include <core/chunk_mesh_generator.hpp>
 #include <bit>
+#include <cassert>
+#include <core/block.hpp>
 
 ChunkMeshGenerator::ChunkMeshGenerator(World &w) : world(w) {}
 
@@ -208,6 +210,12 @@ void ChunkMeshGenerator::emitQuad(
     normal *= -1;
   }
 
+  assert(material < BLOCK_TYPE_COUNT);
+  const BlockFaceTextures &faces = BLOCK_FACE_TEXTURES[material];
+  uint32_t textureId = axis != Axis::Y                          ? faces.side
+                       : axisDirection == AxisDirection::Positive ? faces.top
+                                                                  : faces.bottom;
+
   uint32_t baseVertex = static_cast<uint32_t>(vertices.size());
 
   glm::vec2 uv0;
@@ -241,10 +249,10 @@ void ChunkMeshGenerator::emitQuad(
   }
 
   const float scale = (float)VOXEL_SIZE * (float)size;
-  vertices.push_back({v0 * scale, uv0, normal, material});
-  vertices.push_back({v1 * scale, uv1, normal, material});
-  vertices.push_back({v2 * scale, uv2, normal, material});
-  vertices.push_back({v3 * scale, uv3, normal, material});
+  vertices.push_back({v0 * scale, uv0, normal, textureId});
+  vertices.push_back({v1 * scale, uv1, normal, textureId});
+  vertices.push_back({v2 * scale, uv2, normal, textureId});
+  vertices.push_back({v3 * scale, uv3, normal, textureId});
 
   if (axisDirection == AxisDirection::Positive)
   {
@@ -304,7 +312,7 @@ ChunkMesh ChunkMeshGenerator::getChunkMesh(Chunk &chunk, int size)
 
   BinaryGrids solid = getBinaryGrids(chunk, 0);
 
-  for (uint32_t material = 1; material <= 2; material++)
+  for (uint32_t material = 1; material < BLOCK_TYPE_COUNT; material++)
   {
     BinaryGrids occupancy = getBinaryGrids(chunk, material);
 
