@@ -45,6 +45,7 @@ public:
   void uploadImage(vk::raii::Buffer &stagingBuffer, vk::raii::Image &image, int width, int height);
 
   vk::raii::DescriptorPool &getDescriptorPool() { return descriptorPool; }
+  VkContext &getContext() { return vkContext; }
 };
 
 #endif // VK_RESOURCE_HPP

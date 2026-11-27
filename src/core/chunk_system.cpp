@@ -12,6 +12,7 @@ namespace
 {
   constexpr int VIEW_DISTANCE = 24;
   constexpr int LOAD_DISTANCE = VIEW_DISTANCE + 1;
+  constexpr auto UPLOAD_FLUSH_INTERVAL = std::chrono::milliseconds(16);
 
   constexpr std::array<glm::ivec3, 6> NEIGHBOR_OFFSETS = {{
       {1, 0, 0},
@@ -138,11 +139,32 @@ void ChunkSystem::processEdits()
   processFrees();
 
   BlockEdit edit{};
+  bool applied = false;
 
   while (editQueue.tryPop(edit))
   {
     applyEdit(edit);
+    applied = true;
   }
+
+  if (applied)
+    flushUploads();
+}
+
+void ChunkSystem::queueMessage(ChunkMeshMessage message)
+{
+  pendingMessages.push_back(std::move(message));
+}
+
+void ChunkSystem::flushUploads()
+{
+  meshAllocator.flush();
+
+  for (auto &message : pendingMessages)
+    meshQueue.push(std::move(message));
+
+  pendingMessages.clear();
+  lastFlush = std::chrono::steady_clock::now();
 }
 
 void ChunkSystem::setViewerPosition(const glm::vec3 &position)
@@ -287,6 +309,9 @@ void ChunkSystem::update()
     dirtyChunks.erase(coord);
 
     loadedChunks.emplace(coord);
+
+    if (std::chrono::steady_clock::now() - lastFlush >= UPLOAD_FLUSH_INTERVAL)
+      flushUploads();
   }
 
   for (auto &coord : loadedChunks)
@@ -305,12 +330,14 @@ void ChunkSystem::update()
         if (meshAllocationNode.empty())
           continue;
 
-        meshQueue.push(ChunkMeshUnload{pos});
+        queueMessage(ChunkMeshUnload{pos});
       }
     }
   }
 
   loadedChunks = desiredChunks;
+
+  flushUploads();
 
   // std::cout << avgVerticesPerChunk << std::endl;
 }
@@ -334,11 +361,14 @@ void ChunkSystem::remeshChunk(Chunk &chunk)
     if (it != meshAllocations.end())
     {
       meshAllocations.erase(it);
-      meshQueue.push(ChunkMeshUnload{chunk.pos});
+      queueMessage(ChunkMeshUnload{chunk.pos});
     }
 
     return;
   }
+
+  if (meshAllocator.needsFlush(mesh.vertices.size(), mesh.indices.size()))
+    flushUploads();
 
   auto meshAllocation = meshAllocator.allocate(mesh.vertices, mesh.indices);
   meshAllocation.pos = chunk.pos;
@@ -352,5 +382,5 @@ void ChunkSystem::remeshChunk(Chunk &chunk)
     meshAllocations.emplace(chunk.pos, meshAllocation);
   }
 
-  meshQueue.push(ChunkMeshLoad{meshAllocation});
+  queueMessage(ChunkMeshLoad{meshAllocation});
 }

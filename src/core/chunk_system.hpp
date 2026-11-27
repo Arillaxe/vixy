@@ -59,11 +59,15 @@ private:
   std::unordered_map<glm::ivec3, MeshAllocation> meshAllocations;
   std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers;
   MeshAllocator meshAllocator;
+  std::vector<ChunkMeshMessage> pendingMessages;
+  std::chrono::steady_clock::time_point lastFlush;
   std::unordered_set<glm::ivec2> loadedChunks;
 
   void loop();
   void update();
   void wake();
+  void queueMessage(ChunkMeshMessage message);
+  void flushUploads();
   void processEdits();
   void processFrees();
   void applyEdit(const BlockEdit &edit);
