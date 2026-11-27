@@ -11,7 +11,8 @@
 #include <renderer/mesh_allocator.hpp>
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-constexpr int MAX_DRAW_SIZE = sizeof(vk::DrawIndirectCommand) * 100000;
+constexpr uint32_t MAX_DRAW_COUNT = 100000;
+constexpr vk::DeviceSize MAX_DRAW_SIZE = sizeof(vk::DrawIndexedIndirectCommand) * MAX_DRAW_COUNT;
 
 Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMeshMessage> &mQueue)
 		: window(win),
@@ -307,13 +308,16 @@ void Renderer::render()
 	commandBuffer.pushConstants<PushConstants>(mainPipeline.getPipelineLayout(), vk::ShaderStageFlagBits::eVertex, 0, pushConstants);
 	auto indirectCommands = static_cast<vk::DrawIndexedIndirectCommand *>(indirectBufferMemory.mapMemory(0, MAX_DRAW_SIZE));
 
-	int commandId = 0;
+	uint32_t commandId = 0;
 
 	for (auto &[pos, meshAllocation] : chunkMeshesAllocations)
 	{
 
 		if (!culler.isVisible(pos))
 			continue;
+
+		if (commandId >= MAX_DRAW_COUNT)
+			break;
 
 		indirectCommands[commandId++] = vk::DrawIndexedIndirectCommand{
 				.indexCount = meshAllocation.indexCount,
