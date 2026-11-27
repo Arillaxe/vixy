@@ -11,6 +11,8 @@
 #include <core/frustum_culler.hpp>
 #include <renderer/mesh_allocator.hpp>
 
+static_assert(BLOCK_TEXTURE_COUNT <= MAX_TEXTURES);
+
 constexpr uint32_t MAX_DRAW_COUNT = 100000;
 constexpr vk::DeviceSize MAX_DRAW_SIZE = sizeof(vk::DrawIndexedIndirectCommand) * MAX_DRAW_COUNT;
 

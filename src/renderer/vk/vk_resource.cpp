@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <imgui/imgui_impl_vulkan.h>
+#include <renderer/texture.hpp>
 
 VkResource::VkResource(VkContext &context, VkCommand &command)
     : vkContext(context),
@@ -45,7 +46,7 @@ vk::raii::DescriptorPool VkResource::createDescriptorPool()
       },
       {
           .type = vk::DescriptorType::eCombinedImageSampler,
-          .descriptorCount = 4096, // TODO: use MAX_TEXTURES
+          .descriptorCount = MAX_TEXTURES,
       },
   }};
   vk::DescriptorPoolCreateInfo poolInfo{

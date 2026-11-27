@@ -3,6 +3,7 @@
 
 #include <glm/glm.hpp>
 #include <core/world.hpp>
+#include <core/block.hpp>
 
 struct RaycastHit
 {
@@ -71,7 +72,7 @@ RaycastHit raycast(
   {
     if (Voxel *v = world.getVoxel(voxel.x, voxel.y, voxel.z))
     {
-      if (v->type != 0)
+      if (v->type != BLOCK_AIR)
       {
         result.hit = true;
         result.voxel = voxel;

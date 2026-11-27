@@ -3,10 +3,9 @@
 #include <renderer/vertex.hpp>
 #include <renderer/ubo.hpp>
 #include <renderer/push.hpp>
+#include <renderer/texture.hpp>
 #include <array>
 #include <vector>
-
-constexpr int MAX_TEXTURES = 4096;
 
 MainPipeline::MainPipeline(VkContext &context, VkSwapchain &swapchain, VkResource &resource)
     : Vk_Pipeline(context, swapchain, resource, "slang.spv")
