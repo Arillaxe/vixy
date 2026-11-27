@@ -296,3 +296,9 @@ vk::raii::Queue VkContext::createTransferQueue()
 {
   return vk::raii::Queue(device, transferQueueIndex, 0);
 }
+
+void VkContext::waitIdle()
+{
+  std::scoped_lock lock(queueMutex, transferQueueMutex);
+  device.waitIdle();
+}
