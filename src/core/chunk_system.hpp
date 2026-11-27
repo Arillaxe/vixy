@@ -62,6 +62,7 @@ private:
   void processEdits();
   void applyEdit(const BlockEdit &edit);
   void updateChunk(glm::ivec3 chunkPos);
+  void remeshChunk(Chunk &chunk);
   glm::vec3 getViewerPosition();
   std::unordered_set<glm::ivec2> getChunksAround(glm::vec3 &position);
 

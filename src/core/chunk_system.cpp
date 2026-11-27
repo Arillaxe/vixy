@@ -242,29 +242,10 @@ void ChunkSystem::update()
         // if (!neighborsResolved(world, chunk->pos))
         //   continue;
 
-        chunk->isMeshed = true;
-
-        auto mesh = chunkMeshGenerator.getChunkMesh(*chunk, 1);
-        auto it = meshAllocations.find(chunk->pos);
-        auto meshAllocation = meshAllocator.allocate(mesh.vertices, mesh.indices);
-        meshAllocation.pos = chunk->pos;
-
-        if (it != meshAllocations.end())
-        {
-          meshAllocator.free(it->second);
-          it->second = meshAllocation;
-        }
-        else
-        {
-          meshAllocations.emplace(chunk->pos, meshAllocation);
-        }
-
-        // assert(inserted);
+        remeshChunk(*chunk);
 
         // avgVerticesPerChunk += mesh.vertices.size();
         // avgVerticesPerChunk /= 2;
-
-        meshQueue.push(ChunkMeshLoad{meshAllocation});
       }
     }
 
@@ -286,7 +267,8 @@ void ChunkSystem::update()
 
         auto meshAllocationNode = meshAllocations.extract(pos);
 
-        assert(!meshAllocationNode.empty());
+        if (meshAllocationNode.empty())
+          continue;
 
         meshAllocator.free(meshAllocationNode.mapped());
         meshQueue.push(ChunkMeshUnload{pos});
@@ -303,12 +285,30 @@ void ChunkSystem::updateChunk(glm::ivec3 chunkPos)
 {
   auto *chunk = world.getChunk(chunkPos.x, chunkPos.y, chunkPos.z);
 
-  chunk->isMeshed = true;
+  remeshChunk(*chunk);
+}
 
-  auto mesh = chunkMeshGenerator.getChunkMesh(*chunk, 1);
-  auto it = meshAllocations.find(chunk->pos);
+void ChunkSystem::remeshChunk(Chunk &chunk)
+{
+  chunk.isMeshed = true;
+
+  auto mesh = chunkMeshGenerator.getChunkMesh(chunk, 1);
+  auto it = meshAllocations.find(chunk.pos);
+
+  if (mesh.vertices.empty() || mesh.indices.empty())
+  {
+    if (it != meshAllocations.end())
+    {
+      meshAllocator.free(it->second);
+      meshAllocations.erase(it);
+      meshQueue.push(ChunkMeshUnload{chunk.pos});
+    }
+
+    return;
+  }
+
   auto meshAllocation = meshAllocator.allocate(mesh.vertices, mesh.indices);
-  meshAllocation.pos = chunk->pos;
+  meshAllocation.pos = chunk.pos;
 
   if (it != meshAllocations.end())
   {
@@ -317,7 +317,7 @@ void ChunkSystem::updateChunk(glm::ivec3 chunkPos)
   }
   else
   {
-    meshAllocations.emplace(chunk->pos, meshAllocation);
+    meshAllocations.emplace(chunk.pos, meshAllocation);
   }
 
   meshQueue.push(ChunkMeshLoad{meshAllocation});
