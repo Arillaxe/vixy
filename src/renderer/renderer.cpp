@@ -13,7 +13,7 @@
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr int MAX_DRAW_SIZE = sizeof(vk::DrawIndirectCommand) * 100000;
 
-Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<MeshAllocation> &lQueue, ThreadQueue<glm::ivec3> &uQueue)
+Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMeshMessage> &mQueue)
 		: window(win),
 			vkContext(win),
 			vkCommand(vkContext),
@@ -28,8 +28,7 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<MeshAllo
 					vk::QueryPoolCreateInfo{}
 							.setQueryType(vk::QueryType::eTimestamp)
 							.setQueryCount(MAX_FRAMES_IN_FLIGHT * 2)),
-			loadQueue(lQueue),
-			unloadQueue(uQueue),
+			meshQueue(mQueue),
 			gui(window, vkContext, vkResource, vkSwapchain),
 			vertexBuffer(vkResource.createBuffer(VERTEX_BUFFER_SIZE, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst)),
 			vertexBufferMemory(vkResource.getBufferMemory(vertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
@@ -285,18 +284,17 @@ void Renderer::render()
 	PushConstants pushConstants;
 	pushConstants.model = glm::mat4(1.0f);
 
-	unloadQueueSize = unloadQueue.getSize();
+	meshQueueSize = meshQueue.getSize();
 
-	while (unloadQueue.tryPop(toUnload))
+	// Apply loads and unloads in the order the chunk thread sent them.
+	ChunkMeshMessage message;
+
+	while (meshQueue.tryPop(message))
 	{
-		chunkMeshesAllocations.erase(toUnload);
-	}
-
-	loadQueueSize = loadQueue.getSize();
-
-	while (loadQueue.tryPop(toLoad))
-	{
-		chunkMeshesAllocations.insert_or_assign(toLoad.pos, std::move(toLoad));
+		if (auto *load = std::get_if<ChunkMeshLoad>(&message))
+			chunkMeshesAllocations.insert_or_assign(load->allocation.pos, load->allocation);
+		else
+			chunkMeshesAllocations.erase(std::get<ChunkMeshUnload>(message).pos);
 	}
 
 	totalIndices = 0;
@@ -417,7 +415,6 @@ void Renderer::drawGUI()
 	ImGui::Text("CPU frame: %.2fms", cpuMs);
 	ImGui::Text("GPU frame: %.2fms", gpuMs);
 	ImGui::Text("Chunks loaded: %d", chunkMeshesAllocations.size());
-	ImGui::Text("Load queue size: %d", loadQueueSize);
-	ImGui::Text("Unload queue size: %d", unloadQueueSize);
+	ImGui::Text("Mesh queue size: %d", meshQueueSize);
 	ImGui::Text("Triangles: %d", totalIndices / 3);
 }

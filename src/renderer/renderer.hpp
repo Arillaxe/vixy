@@ -32,13 +32,9 @@ private:
   Camera &camera;
   vk::raii::QueryPool queryPool;
   std::unordered_map<glm::ivec3, MeshAllocation> chunkMeshesAllocations;
-  ThreadQueue<MeshAllocation> &loadQueue;
-  ThreadQueue<glm::ivec3> &unloadQueue;
-  glm::ivec3 toUnload;
-  MeshAllocation toLoad;
+  ThreadQueue<ChunkMeshMessage> &meshQueue;
   GUI gui;
-  uint32_t loadQueueSize;
-  uint32_t unloadQueueSize;
+  uint32_t meshQueueSize;
   uint32_t totalIndices;
   double cpuMs;
   double gpuMs;
@@ -65,7 +61,7 @@ private:
       vk::ImageAspectFlags image_aspect_flags);
 
 public:
-  Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<MeshAllocation> &lQueue, ThreadQueue<glm::ivec3> &uQueue);
+  Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMeshMessage> &mQueue);
 
   VkResource &getVkResource() { return vkResource; }
   std::pair<vk::raii::Buffer &, vk::raii::Buffer &> getBuffers() { return {vertexBuffer, indexBuffer}; }
