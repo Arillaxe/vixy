@@ -175,7 +175,7 @@ void VkSwapchain::recreateSwapchain()
     glfwWaitEvents();
   }
 
-  vkContext.getDevice().waitIdle();
+  vkContext.waitIdle();
 
   auto oldSwapchain = std::move(swapchain);
 

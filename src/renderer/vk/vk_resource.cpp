@@ -119,9 +119,8 @@ void VkResource::copyBuffer(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBu
 
 void VkResource::copyBufferEx(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer, vk::BufferCopy copyParams)
 {
-  vk::raii::CommandBuffer commandCopyBuffer = vkCommand.beginSingleTimeCommands();
-  commandCopyBuffer.copyBuffer(*srcBuffer, *dstBuffer, copyParams);
-  vkCommand.endSingleTimeCommands(std::move(commandCopyBuffer));
+  vkCommand.submitSingleTimeCommands([&](vk::raii::CommandBuffer &commandBuffer)
+                                     { commandBuffer.copyBuffer(*srcBuffer, *dstBuffer, copyParams); });
 }
 
 vk::raii::Image VkResource::createImage(
@@ -189,51 +188,53 @@ void VkResource::transition_image_layout(
 
 void VkResource::uploadImage(vk::raii::Buffer &stagingBuffer, vk::raii::Image &image, int width, int height)
 {
-  vk::raii::CommandBuffer commandCopyBuffer = vkCommand.beginSingleTimeCommands(true);
-  transition_image_layout(
-      commandCopyBuffer,
-      image,
-      vk::ImageLayout::eUndefined,
-      vk::ImageLayout::eTransferDstOptimal,
-      {},
-      vk::AccessFlagBits2::eTransferWrite,
-      vk::PipelineStageFlagBits2::eTopOfPipe,
-      vk::PipelineStageFlagBits2::eTransfer,
-      vk::ImageAspectFlagBits::eColor);
+  auto record = [&](vk::raii::CommandBuffer &commandBuffer)
+  {
+    transition_image_layout(
+        commandBuffer,
+        image,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eTransferDstOptimal,
+        {},
+        vk::AccessFlagBits2::eTransferWrite,
+        vk::PipelineStageFlagBits2::eTopOfPipe,
+        vk::PipelineStageFlagBits2::eTransfer,
+        vk::ImageAspectFlagBits::eColor);
 
-  vk::BufferImageCopy region{
-      .bufferOffset = 0,
-      .bufferRowLength = 0,
-      .bufferImageHeight = 0,
+    vk::BufferImageCopy region{
+        .bufferOffset = 0,
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
 
-      .imageSubresource = {
-          .aspectMask = vk::ImageAspectFlagBits::eColor,
-          .mipLevel = 0,
-          .baseArrayLayer = 0,
-          .layerCount = 1,
-      },
+        .imageSubresource = {
+            .aspectMask = vk::ImageAspectFlagBits::eColor,
+            .mipLevel = 0,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
 
-      .imageOffset = {0, 0, 0},
+        .imageOffset = {0, 0, 0},
 
-      .imageExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1},
+        .imageExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1},
+    };
+
+    commandBuffer.copyBufferToImage(
+        *stagingBuffer,
+        *image,
+        vk::ImageLayout::eTransferDstOptimal,
+        region);
+
+    transition_image_layout(
+        commandBuffer,
+        image,
+        vk::ImageLayout::eTransferDstOptimal,
+        vk::ImageLayout::eShaderReadOnlyOptimal,
+        vk::AccessFlagBits2::eTransferWrite,
+        vk::AccessFlagBits2::eShaderSampledRead,
+        vk::PipelineStageFlagBits2::eTransfer,
+        vk::PipelineStageFlagBits2::eFragmentShader,
+        vk::ImageAspectFlagBits::eColor);
   };
 
-  commandCopyBuffer.copyBufferToImage(
-      *stagingBuffer,
-      *image,
-      vk::ImageLayout::eTransferDstOptimal,
-      region);
-
-  transition_image_layout(
-      commandCopyBuffer,
-      image,
-      vk::ImageLayout::eTransferDstOptimal,
-      vk::ImageLayout::eShaderReadOnlyOptimal,
-      vk::AccessFlagBits2::eTransferWrite,
-      vk::AccessFlagBits2::eShaderSampledRead,
-      vk::PipelineStageFlagBits2::eTransfer,
-      vk::PipelineStageFlagBits2::eFragmentShader,
-      vk::ImageAspectFlagBits::eColor);
-
-  vkCommand.endSingleTimeCommands(std::move(commandCopyBuffer), true);
+  vkCommand.submitSingleTimeCommands(record, true);
 }

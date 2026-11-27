@@ -3,6 +3,7 @@
 VkCommand::VkCommand(VkContext &context)
     : vkContext(context),
       graphicsCommandPool(createCommandPool(context.getQueueFamilyIndex())),
+      singleTimeGraphicsCommandPool(createCommandPool(context.getQueueFamilyIndex())),
       transferCommandPool(createCommandPool(context.getTransferQueueFamilyIndex())) {}
 
 vk::raii::CommandPool VkCommand::createCommandPool(uint32_t queueFamilyIndex)
@@ -26,39 +27,29 @@ vk::raii::CommandBuffers VkCommand::createCommandBuffers(uint32_t amount)
   return vk::raii::CommandBuffers(vkContext.getDevice(), allocInfo);
 }
 
-vk::raii::CommandBuffer VkCommand::beginSingleTimeCommands(bool q)
+void VkCommand::submitSingleTimeCommands(const std::function<void(vk::raii::CommandBuffer &)> &record, bool graphics)
 {
+  vk::raii::Queue &queue = graphics ? vkContext.getQueue() : vkContext.getTransferQueue();
+  std::lock_guard lock(graphics ? vkContext.getQueueMutex() : vkContext.getTransferQueueMutex());
+
   vk::CommandBufferAllocateInfo allocInfo{
-      .commandPool = q ? graphicsCommandPool : transferCommandPool,
+      .commandPool = graphics ? singleTimeGraphicsCommandPool : transferCommandPool,
       .level = vk::CommandBufferLevel::ePrimary,
       .commandBufferCount = 1,
   };
   vk::raii::CommandBuffer commandBuffer = std::move(vk::raii::CommandBuffers(vkContext.getDevice(), allocInfo).front());
+
   vk::CommandBufferBeginInfo beginInfo{
       .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
   };
   commandBuffer.begin(beginInfo);
-
-  return std::move(commandBuffer);
-}
-
-void VkCommand::endSingleTimeCommands(vk::raii::CommandBuffer &&commandBuffer, bool q)
-{
+  record(commandBuffer);
   commandBuffer.end();
 
   vk::SubmitInfo submitInfo{
       .commandBufferCount = 1,
       .pCommandBuffers = &*commandBuffer,
   };
-
-  if (q)
-  {
-    vkContext.getQueue().submit(submitInfo, nullptr);
-    vkContext.getQueue().waitIdle();
-  }
-  else
-  {
-    vkContext.getTransferQueue().submit(submitInfo, nullptr);
-    vkContext.getTransferQueue().waitIdle();
-  }
+  queue.submit(submitInfo, nullptr);
+  queue.waitIdle();
 }

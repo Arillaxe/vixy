@@ -4,6 +4,7 @@
 #include <renderer/vk.hpp>
 #include <core/window.hpp>
 #include <vector>
+#include <mutex>
 
 class VkContext
 {
@@ -19,6 +20,8 @@ private:
   vk::raii::Device device;
   vk::raii::Queue queue;
   vk::raii::Queue transferQueue;
+  std::mutex queueMutex;
+  std::mutex transferQueueMutex;
 
   vk::raii::Instance createInstance();
   std::vector<const char *> getRequiredInstanceExtensions();
@@ -47,6 +50,9 @@ public:
   uint32_t getTransferQueueFamilyIndex() { return transferQueueIndex; }
   vk::raii::Queue &getQueue() { return queue; }
   vk::raii::Queue &getTransferQueue() { return transferQueue; }
+  std::mutex &getQueueMutex() { return queueMutex; }
+  std::mutex &getTransferQueueMutex() { return transferQueueMutex; }
+  void waitIdle();
   vk::raii::Instance &getInstance() { return instance; }
 };
 

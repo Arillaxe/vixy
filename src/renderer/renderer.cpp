@@ -402,8 +402,6 @@ void Renderer::render()
 			.pSignalSemaphores = &*vkSwapchain.getRenderFinishedSemaphore(imageIndex),
 	};
 
-	vkContext.getQueue().submit(submitInfo, *vkSynchronization[frameIndex].getDrawFence());
-
 	const vk::PresentInfoKHR presentInfoKHR{
 			.waitSemaphoreCount = 1,
 			.pWaitSemaphores = &*vkSwapchain.getRenderFinishedSemaphore(imageIndex),
@@ -412,7 +410,12 @@ void Renderer::render()
 			.pImageIndices = &imageIndex,
 	};
 
-	auto result = vkContext.getQueue().presentKHR(presentInfoKHR);
+	vk::Result result;
+	{
+		std::lock_guard lock(vkContext.getQueueMutex());
+		vkContext.getQueue().submit(submitInfo, *vkSynchronization[frameIndex].getDrawFence());
+		result = vkContext.getQueue().presentKHR(presentInfoKHR);
+	}
 
 	if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR || window.framebufferResized)
 	{
@@ -435,7 +438,7 @@ void Renderer::render()
 
 void Renderer::waitIdle()
 {
-	vkContext.getDevice().waitIdle();
+	vkContext.waitIdle();
 }
 
 void Renderer::drawGUI()
