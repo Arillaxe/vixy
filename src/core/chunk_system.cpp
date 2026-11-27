@@ -56,6 +56,25 @@ ChunkSystem::ChunkSystem(VkResource &resource, glm::vec3 initialViewerPosition, 
 
 void ChunkSystem::run()
 {
+  try
+  {
+    loop();
+  }
+  catch (...)
+  {
+    error = std::current_exception();
+    failed.store(true, std::memory_order_release);
+  }
+}
+
+void ChunkSystem::rethrowIfFailed()
+{
+  if (failed.load(std::memory_order_acquire))
+    std::rethrow_exception(error);
+}
+
+void ChunkSystem::loop()
+{
   constexpr auto tickInterval = std::chrono::milliseconds(16);
 
   auto nextTick = std::chrono::steady_clock::now();
