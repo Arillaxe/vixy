@@ -29,8 +29,7 @@ private:
   World world;
 
   std::thread chunkSystemThread;
-  ThreadQueue<MeshAllocation> loadQueue;
-  ThreadQueue<glm::ivec3> unloadQueue;
+  ThreadQueue<ChunkMeshMessage> meshQueue;
 
   Renderer renderer;
   ChunkSystem chunkSystem;
@@ -42,8 +41,8 @@ public:
       : window(WIDTH, HEIGHT),
         input(window, camera),
         world(123456u),
-        renderer(window, scene, camera, loadQueue, unloadQueue),
-        chunkSystem(renderer.getVkResource(), camera.position, world, loadQueue, unloadQueue, renderer.getBuffers()),
+        renderer(window, scene, camera, meshQueue),
+        chunkSystem(renderer.getVkResource(), camera.position, world, meshQueue, renderer.getBuffers()),
         robotMesh(renderer.getVkResource(), "./models/robot.gltf")
   {
     Entity object("object");
@@ -115,9 +114,8 @@ public:
     chunkSystemThread.join();
 
     renderer.waitIdle();
-    // GPUChunkMeshes in the queue own VkBuffer/VkDeviceMemory; destroy them
-    // before Renderer (and the VkDevice) goes away.
-    loadQueue.clear();
+    // Drop any mesh messages the renderer never applied.
+    meshQueue.clear();
   }
 };
 

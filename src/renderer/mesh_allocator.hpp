@@ -2,6 +2,7 @@
 #define MESH_ALLOCATOR_HPP
 
 #include <cstdint>
+#include <variant>
 #include <core/arena_allocator.hpp>
 #include <renderer/vertex.hpp>
 #include <renderer/vk/vk_resource.hpp>
@@ -17,6 +18,20 @@ struct MeshAllocation
   uint32_t indexOffset;
   uint32_t indexCount;
 };
+
+// Messages from the chunk thread to the renderer. Loads and unloads share one
+// queue so the renderer applies them in the order they were sent (#4).
+struct ChunkMeshLoad
+{
+  MeshAllocation allocation;
+};
+
+struct ChunkMeshUnload
+{
+  glm::ivec3 pos;
+};
+
+using ChunkMeshMessage = std::variant<ChunkMeshLoad, ChunkMeshUnload>;
 
 class MeshAllocator
 {

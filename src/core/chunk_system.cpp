@@ -44,12 +44,11 @@ namespace
   }
 } // namespace
 
-ChunkSystem::ChunkSystem(VkResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<MeshAllocation> &lQueue, ThreadQueue<glm::ivec3> &uQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> b)
+ChunkSystem::ChunkSystem(VkResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<ChunkMeshMessage> &mQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> b)
     : vkResource(resource),
       world(w),
       chunkMeshGenerator(w),
-      loadQueue(lQueue),
-      unloadQueue(uQueue),
+      meshQueue(mQueue),
       viewerPosition(initialViewerPosition),
       buffers(b),
       meshAllocator(vkResource, buffers.first, buffers.second) {}
@@ -265,7 +264,7 @@ void ChunkSystem::update()
         // avgVerticesPerChunk += mesh.vertices.size();
         // avgVerticesPerChunk /= 2;
 
-        loadQueue.push(std::move(meshAllocation));
+        meshQueue.push(ChunkMeshLoad{meshAllocation});
       }
     }
 
@@ -290,7 +289,7 @@ void ChunkSystem::update()
         assert(!meshAllocationNode.empty());
 
         meshAllocator.free(meshAllocationNode.mapped());
-        unloadQueue.push(std::move(pos));
+        meshQueue.push(ChunkMeshUnload{pos});
       }
     }
   }
@@ -321,5 +320,5 @@ void ChunkSystem::updateChunk(glm::ivec3 chunkPos)
     meshAllocations.emplace(chunk->pos, meshAllocation);
   }
 
-  loadQueue.push(std::move(meshAllocation));
+  meshQueue.push(ChunkMeshLoad{meshAllocation});
 }
