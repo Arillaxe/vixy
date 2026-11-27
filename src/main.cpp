@@ -14,6 +14,12 @@ int main()
 
     return EXIT_FAILURE;
   }
+  catch (...)
+  {
+    std::cerr << "Unknown error" << std::endl;
+
+    return EXIT_FAILURE;
+  }
 
   return EXIT_SUCCESS;
 }

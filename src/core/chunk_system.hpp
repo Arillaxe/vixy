@@ -5,6 +5,7 @@
 #include <core/world.hpp>
 #include <core/chunk_mesh_generator.hpp>
 #include <atomic>
+#include <exception>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -48,6 +49,8 @@ private:
   ThreadQueue<MeshAllocation> &freeQueue;
   ThreadQueue<BlockEdit> editQueue;
   std::atomic<bool> shouldClose = false;
+  std::atomic<bool> failed = false;
+  std::exception_ptr error;
   std::mutex wakeMutex;
   std::condition_variable wakeCondition;
   bool wakeRequested = false; // guarded by wakeMutex
@@ -58,6 +61,7 @@ private:
   MeshAllocator meshAllocator;
   std::unordered_set<glm::ivec2> loadedChunks;
 
+  void loop();
   void update();
   void wake();
   void processEdits();
@@ -84,6 +88,8 @@ public:
 
   // Thread-safe. Asks run() to return as soon as possible.
   void close();
+
+  void rethrowIfFailed();
 };
 
 #endif // CHUNK_SYSTEM_HPP

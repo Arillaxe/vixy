@@ -59,6 +59,17 @@ public:
     chunkSystemThread = std::thread(&ChunkSystem::run, &chunkSystem);
   }
 
+  ~App()
+  {
+    try
+    {
+      shutdown();
+    }
+    catch (...)
+    {
+    }
+  }
+
   void gameplay()
   {
     static bool leftPressed = false;
@@ -106,10 +117,20 @@ public:
     {
       window.pollEvents();
       input.pollEvents();
+      chunkSystem.rethrowIfFailed();
       chunkSystem.setViewerPosition(camera.position);
       gameplay();
       renderer.render();
     }
+
+    shutdown();
+    chunkSystem.rethrowIfFailed();
+  }
+
+  void shutdown()
+  {
+    if (!chunkSystemThread.joinable())
+      return;
 
     chunkSystem.close();
     chunkSystemThread.join();
