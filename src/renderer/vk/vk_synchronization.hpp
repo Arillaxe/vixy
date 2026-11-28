@@ -17,6 +17,7 @@ public:
   VkSynchronization(VkContext &context);
 
   void waitDrawFence();
+  void resetDrawFence();
 
   vk::raii::Fence &getDrawFence() { return drawFence; }
   vk::raii::Semaphore &getPresentCompleteSemaphore() { return presentCompleteSemaphore; }
