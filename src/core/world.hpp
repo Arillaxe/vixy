@@ -12,21 +12,20 @@ class World
 private:
   ChunkGenerator chunkGenerator;
   std::unordered_map<glm::ivec3, Chunk> chunks;
-  std::unordered_set<glm::ivec3> generatedEmpty;
   std::unordered_map<glm::ivec2, std::vector<int>> columnChunkYs;
+  std::unordered_map<glm::ivec2, std::vector<Chunk>> savedColumns;
 
 public:
   World(uint32_t seed);
   std::unordered_map<glm::ivec3, Chunk> &getChunks() { return chunks; }
 
-  // Returns true when a new non-empty chunk was inserted.
-  void loadChunk(int x, int z);
-  void unloadChunk(int x, int y, int z);
+  void loadColumn(int x, int z);
+  void unloadColumn(int x, int z);
   bool isChunkResolved(int x, int y, int z) const;
-  std::vector<Chunk *> getRenderChunks(int x, int z);
+  std::vector<Chunk *> getColumnChunks(int x, int z);
   Chunk *getChunk(int x, int y, int z);
   Voxel *getVoxel(int x, int y, int z);
-  void createEmptyChunk(int x, int y, int z);
+  Chunk *createEmptyChunk(int x, int y, int z);
 };
 
 #endif // WORLD_HPP

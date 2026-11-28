@@ -206,6 +206,7 @@ void ChunkSystem::applyEdit(const BlockEdit &edit)
     return;
 
   voxel->type = isBreak ? BLOCK_AIR : BLOCK_GRASS;
+  world.getChunk(chunkPos.x, chunkPos.y, chunkPos.z)->isEdited = true;
 
   for (const auto &offset : NEIGHBOR_OFFSETS)
   {
@@ -269,7 +270,7 @@ void ChunkSystem::update()
     // between columns instead of making them wait for the whole pass.
     processEdits();
 
-    world.loadChunk(coord.x, coord.y);
+    world.loadColumn(coord.x, coord.y);
 
     // mark neighboruing chunks as dirty
 
@@ -293,7 +294,7 @@ void ChunkSystem::update()
 
     processEdits();
 
-    auto yChunks = world.getRenderChunks(coord.x, coord.y);
+    auto yChunks = world.getColumnChunks(coord.x, coord.y);
 
     for (auto *chunk : yChunks)
     {
@@ -319,23 +320,16 @@ void ChunkSystem::update()
 
   for (auto &coord : loadedChunks)
   {
-    if (!desiredChunks.contains(coord))
+    if (desiredChunks.contains(coord))
+      continue;
+
+    for (auto *chunk : world.getColumnChunks(coord.x, coord.y))
     {
-      auto yChunks = world.getRenderChunks(coord.x, coord.y);
-
-      for (auto *chunk : yChunks)
-      {
-        chunk->isMeshed = false;
-        glm::ivec3 pos = chunk->pos;
-
-        auto meshAllocationNode = meshAllocations.extract(pos);
-
-        if (meshAllocationNode.empty())
-          continue;
-
-        queueMessage(ChunkMeshUnload{pos});
-      }
+      if (meshAllocations.erase(chunk->pos))
+        queueMessage(ChunkMeshUnload{chunk->pos});
     }
+
+    world.unloadColumn(coord.x, coord.y);
   }
 
   loadedChunks = desiredChunks;
