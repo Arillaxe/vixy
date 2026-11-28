@@ -4,6 +4,7 @@
 #include <core/thread_queue.hpp>
 #include <core/world.hpp>
 #include <core/chunk_mesh_generator.hpp>
+#include <core/block.hpp>
 #include <atomic>
 #include <exception>
 #include <condition_variable>
@@ -71,7 +72,7 @@ private:
   void processEdits();
   void processFrees();
   void applyEdit(const BlockEdit &edit);
-  void updateChunk(glm::ivec3 chunkPos);
+  void setVoxel(const glm::ivec3 &voxelPos, BlockType type);
   void remeshChunk(Chunk &chunk);
   glm::vec3 getViewerPosition();
   std::unordered_set<glm::ivec2> getChunksAround(glm::vec3 &position);

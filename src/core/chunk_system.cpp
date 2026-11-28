@@ -188,12 +188,26 @@ void ChunkSystem::applyEdit(const BlockEdit &edit)
   if (!hit.hit)
     return;
 
-  const bool isBreak = edit.action == BlockEdit::Action::Break;
-
-  if (!isBreak && hit.voxel == hit.previousVoxel)
+  if (edit.action == BlockEdit::Action::Break)
+  {
+    setVoxel(hit.voxel, BLOCK_AIR);
     return;
-  const glm::ivec3 voxelPos = isBreak ? hit.voxel : hit.previousVoxel;
+  }
 
+  const glm::ivec3 originVoxel{
+      static_cast<int>(std::floor(edit.origin.x / VOXEL_SIZE)),
+      static_cast<int>(std::floor(edit.origin.y / VOXEL_SIZE)),
+      static_cast<int>(std::floor(edit.origin.z / VOXEL_SIZE)),
+  };
+
+  if (hit.previousVoxel == originVoxel)
+    return;
+
+  setVoxel(hit.previousVoxel, BLOCK_GRASS);
+}
+
+void ChunkSystem::setVoxel(const glm::ivec3 &voxelPos, BlockType type)
+{
   const glm::ivec3 chunkPos{
       floorDiv(voxelPos.x, CHUNK_SIZE),
       floorDiv(voxelPos.y, CHUNK_SIZE),
@@ -211,35 +225,27 @@ void ChunkSystem::applyEdit(const BlockEdit &edit)
       floorMod(voxelPos.z, CHUNK_SIZE),
   };
 
-  chunk->getVoxel(localPos.x, localPos.y, localPos.z).type = isBreak ? BLOCK_AIR : BLOCK_GRASS;
+  chunk->getVoxel(localPos.x, localPos.y, localPos.z).type = type;
   chunk->isEdited = true;
-
-  if (isBreak)
-  {
-    for (const auto &offset : NEIGHBOR_OFFSETS)
-    {
-      const glm::ivec3 neighborLocal = localPos + offset;
-
-      if (glm::all(glm::greaterThanEqual(neighborLocal, glm::ivec3(0))) &&
-          glm::all(glm::lessThan(neighborLocal, glm::ivec3(CHUNK_SIZE))))
-        continue;
-
-      const glm::ivec3 neighborPos = chunkPos + offset;
-
-      if (world.isImplicitSolid(neighborPos.x, neighborPos.y, neighborPos.z))
-        world.ensureChunk(neighborPos.x, neighborPos.y, neighborPos.z)->isEdited = true;
-    }
-  }
 
   for (const auto &offset : NEIGHBOR_OFFSETS)
   {
+    const glm::ivec3 neighborLocal = localPos + offset;
+
+    if (glm::all(glm::greaterThanEqual(neighborLocal, glm::ivec3(0))) &&
+        glm::all(glm::lessThan(neighborLocal, glm::ivec3(CHUNK_SIZE))))
+      continue;
+
     const glm::ivec3 neighborPos = chunkPos + offset;
 
-    if (world.getChunk(neighborPos.x, neighborPos.y, neighborPos.z))
-      updateChunk(neighborPos);
+    if (type == BLOCK_AIR && world.isImplicitSolid(neighborPos.x, neighborPos.y, neighborPos.z))
+      world.ensureChunk(neighborPos.x, neighborPos.y, neighborPos.z)->isEdited = true;
+
+    if (Chunk *neighbor = world.getChunk(neighborPos.x, neighborPos.y, neighborPos.z))
+      remeshChunk(*neighbor);
   }
 
-  updateChunk(chunkPos);
+  remeshChunk(*chunk);
 }
 
 std::unordered_set<glm::ivec2> ChunkSystem::getChunksAround(glm::vec3 &position)
@@ -360,13 +366,6 @@ void ChunkSystem::update()
   flushUploads();
 
   // std::cout << avgVerticesPerChunk << std::endl;
-}
-
-void ChunkSystem::updateChunk(glm::ivec3 chunkPos)
-{
-  auto *chunk = world.getChunk(chunkPos.x, chunkPos.y, chunkPos.z);
-
-  remeshChunk(*chunk);
 }
 
 void ChunkSystem::remeshChunk(Chunk &chunk)
