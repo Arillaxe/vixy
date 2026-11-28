@@ -17,7 +17,7 @@ public:
   ChunkGenerator(uint32_t seed);
 
   Heightmap getHeightmap(int x, int z);
-  static std::vector<int> getRenderChunksYs(const Heightmap &heightmap);
+  std::vector<int> getRenderChunksYs(int x, int z, const Heightmap &heightmap);
   Chunk generateChunk(int x, int y, int z, const Heightmap &heightmap);
 };
 

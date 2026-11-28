@@ -66,15 +66,26 @@ Heightmap ChunkGenerator::getHeightmap(int x, int z)
   return heightmap;
 }
 
-std::vector<int> ChunkGenerator::getRenderChunksYs(const Heightmap &heightmap)
+std::vector<int> ChunkGenerator::getRenderChunksYs(int x, int z, const Heightmap &heightmap)
 {
+  auto [minHeight, maxHeight] = std::minmax_element(heightmap.begin(), heightmap.end());
+
+  int lowest = *minHeight;
+  const int originX = x * CHUNK_SIZE;
+  const int originZ = z * CHUNK_SIZE;
+
+  for (int i = 0; i < CHUNK_SIZE; ++i)
+  {
+    lowest = std::min(lowest, getWorldHeight(originX - 1, originZ + i));
+    lowest = std::min(lowest, getWorldHeight(originX + CHUNK_SIZE, originZ + i));
+    lowest = std::min(lowest, getWorldHeight(originX + i, originZ - 1));
+    lowest = std::min(lowest, getWorldHeight(originX + i, originZ + CHUNK_SIZE));
+  }
+
   std::vector<int> chunkYs;
 
-  for (int height : heightmap)
-    chunkYs.push_back(floorDiv(height, CHUNK_SIZE));
-
-  std::sort(chunkYs.begin(), chunkYs.end());
-  chunkYs.erase(std::unique(chunkYs.begin(), chunkYs.end()), chunkYs.end());
+  for (int y = floorDiv(lowest, CHUNK_SIZE); y <= floorDiv(*maxHeight, CHUNK_SIZE); ++y)
+    chunkYs.push_back(y);
 
   return chunkYs;
 }

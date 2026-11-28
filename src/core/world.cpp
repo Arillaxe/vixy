@@ -1,5 +1,6 @@
 #include <core/world.hpp>
 #include <core/chunk_generator.hpp>
+#include <core/block.hpp>
 #include <core/math.hpp>
 
 World::World(uint32_t seed) : chunkGenerator(seed)
@@ -8,21 +9,21 @@ World::World(uint32_t seed) : chunkGenerator(seed)
 
 void World::loadColumn(int x, int z)
 {
-  glm::ivec2 column{x, z};
+  glm::ivec2 columnPos{x, z};
 
-  if (columnChunkYs.contains(column))
+  if (columns.contains(columnPos))
     return;
 
-  std::vector<int> chunkYs;
+  Column column;
 
-  auto savedIt = savedColumns.find(column);
+  auto savedIt = savedColumns.find(columnPos);
 
   if (savedIt != savedColumns.end())
   {
     for (auto &chunk : savedIt->second)
     {
       chunk.isMeshed = false;
-      chunkYs.push_back(chunk.pos.y);
+      column.chunkYs.push_back(chunk.pos.y);
       chunks.insert_or_assign(chunk.pos, std::move(chunk));
     }
 
@@ -30,8 +31,11 @@ void World::loadColumn(int x, int z)
   }
 
   Heightmap heightmap = chunkGenerator.getHeightmap(x, z);
+  std::vector<int> surfaceChunkYs = chunkGenerator.getRenderChunksYs(x, z, heightmap);
 
-  for (int y : ChunkGenerator::getRenderChunksYs(heightmap))
+  column.minSurfaceChunkY = surfaceChunkYs.front();
+
+  for (int y : surfaceChunkYs)
   {
     glm::ivec3 pos{x, y, z};
 
@@ -39,24 +43,24 @@ void World::loadColumn(int x, int z)
       continue;
 
     chunks.emplace(pos, chunkGenerator.generateChunk(x, y, z, heightmap));
-    chunkYs.push_back(y);
+    column.chunkYs.push_back(y);
   }
 
-  columnChunkYs.emplace(column, std::move(chunkYs));
+  columns.emplace(columnPos, std::move(column));
 }
 
 void World::unloadColumn(int x, int z)
 {
-  glm::ivec2 column{x, z};
+  glm::ivec2 columnPos{x, z};
 
-  auto columnIt = columnChunkYs.find(column);
+  auto columnIt = columns.find(columnPos);
 
-  if (columnIt == columnChunkYs.end())
+  if (columnIt == columns.end())
     return;
 
   std::vector<Chunk> edited;
 
-  for (int y : columnIt->second)
+  for (int y : columnIt->second.chunkYs)
   {
     auto node = chunks.extract(glm::ivec3{x, y, z});
 
@@ -65,14 +69,42 @@ void World::unloadColumn(int x, int z)
   }
 
   if (!edited.empty())
-    savedColumns.insert_or_assign(column, std::move(edited));
+    savedColumns.insert_or_assign(columnPos, std::move(edited));
 
-  columnChunkYs.erase(columnIt);
+  columns.erase(columnIt);
 }
 
 bool World::isChunkResolved(int x, int y, int z) const
 {
   return chunks.contains(glm::ivec3{x, y, z});
+}
+
+bool World::isImplicitSolid(int x, int y, int z) const
+{
+  auto columnIt = columns.find({x, z});
+
+  if (columnIt == columns.end())
+    return false;
+
+  return y < columnIt->second.minSurfaceChunkY && !chunks.contains(glm::ivec3{x, y, z});
+}
+
+bool World::isSolid(int x, int y, int z) const
+{
+  const int chunkX = floorDiv(x, CHUNK_SIZE);
+  const int chunkY = floorDiv(y, CHUNK_SIZE);
+  const int chunkZ = floorDiv(z, CHUNK_SIZE);
+
+  auto it = chunks.find(glm::ivec3{chunkX, chunkY, chunkZ});
+
+  if (it == chunks.end())
+    return isImplicitSolid(chunkX, chunkY, chunkZ);
+
+  const int index = floorMod(x, CHUNK_SIZE) * CHUNK_SIZE * CHUNK_SIZE +
+                    floorMod(y, CHUNK_SIZE) * CHUNK_SIZE +
+                    floorMod(z, CHUNK_SIZE);
+
+  return it->second.voxels[index].type != BLOCK_AIR;
 }
 
 Voxel *World::getVoxel(int x, int y, int z)
@@ -99,12 +131,12 @@ std::vector<Chunk *> World::getColumnChunks(int x, int z)
 {
   std::vector<Chunk *> ret;
 
-  auto columnIt = columnChunkYs.find({x, z});
+  auto columnIt = columns.find({x, z});
 
-  if (columnIt == columnChunkYs.end())
+  if (columnIt == columns.end())
     return ret;
 
-  for (auto &y : columnIt->second)
+  for (auto &y : columnIt->second.chunkYs)
   {
     auto chunkIt = chunks.find({x, y, z});
 
@@ -131,33 +163,31 @@ Chunk *World::getChunk(int x, int y, int z)
   return &chunkIt->second;
 }
 
-Chunk *World::createEmptyChunk(int x, int y, int z)
+Chunk *World::ensureChunk(int x, int y, int z)
 {
   glm::ivec3 pos{x, y, z};
 
   if (Chunk *existing = getChunk(x, y, z))
     return existing;
 
-  auto columnIt = columnChunkYs.find({x, z});
+  auto columnIt = columns.find({x, z});
 
-  if (columnIt == columnChunkYs.end())
+  if (columnIt == columns.end())
     return nullptr;
 
-  Chunk emptyChunk;
-  emptyChunk.pos = pos;
+  Chunk chunk;
 
-  for (int i = 0; i < CHUNK_SIZE; i++)
+  if (y < columnIt->second.minSurfaceChunkY)
   {
-    for (int j = 0; j < CHUNK_SIZE; j++)
-    {
-      for (int k = 0; k < CHUNK_SIZE; k++)
-      {
-        emptyChunk.getVoxel(i, j, k) = {0};
-      }
-    }
+    chunk = chunkGenerator.generateChunk(x, y, z, chunkGenerator.getHeightmap(x, z));
+  }
+  else
+  {
+    chunk.pos = pos;
+    chunk.voxels.fill(Voxel{BLOCK_AIR});
   }
 
-  columnIt->second.push_back(y);
+  columnIt->second.chunkYs.push_back(y);
 
-  return &chunks.emplace(pos, std::move(emptyChunk)).first->second;
+  return &chunks.emplace(pos, std::move(chunk)).first->second;
 }
