@@ -1,6 +1,6 @@
 #include <core/window.hpp>
 
-void Window::framebufferResizeCallback(GLFWwindow *window, int width, int height)
+void Window::framebufferResizeCallback(GLFWwindow *window, int, int)
 {
   auto instance = reinterpret_cast<Window *>(glfwGetWindowUserPointer(window));
 

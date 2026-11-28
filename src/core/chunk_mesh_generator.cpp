@@ -206,7 +206,7 @@ void ChunkMeshGenerator::emitQuad(
     std::vector<uint32_t> &indices,
     uint32_t material)
 {
-  glm::ivec3 v0, v1, v2, v3;
+  glm::ivec3 v0{}, v1{}, v2{}, v3{};
   const bool positive = axisDirection == AxisDirection::Positive;
 
   switch (axis)

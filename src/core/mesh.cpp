@@ -14,12 +14,12 @@
 
 tinygltf::Model Mesh::loadModel(const std::string &filename)
 {
-  tinygltf::Model model;
+  tinygltf::Model loadedModel;
   tinygltf::TinyGLTF loader;
   std::string err;
   std::string warn;
 
-  bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, filename);
+  bool ret = loader.LoadASCIIFromFile(&loadedModel, &err, &warn, filename);
 
   if (!warn.empty())
   {
@@ -36,7 +36,7 @@ tinygltf::Model Mesh::loadModel(const std::string &filename)
     throw std::runtime_error("Failed to load glTF model");
   }
 
-  return model;
+  return loadedModel;
 }
 
 namespace
@@ -182,7 +182,7 @@ namespace
 
 std::vector<Vertex> Mesh::calcVerticies()
 {
-  std::vector<Vertex> vertices;
+  std::vector<Vertex> result;
 
   for (const auto &mesh : model.meshes)
   {
@@ -218,7 +218,7 @@ std::vector<Vertex> Mesh::calcVerticies()
         throw std::runtime_error("glTF attribute counts do not match");
       }
 
-      vertices.reserve(vertices.size() + positions.getCount());
+      result.reserve(result.size() + positions.getCount());
 
       for (size_t i = 0; i < positions.getCount(); i++)
       {
@@ -250,17 +250,17 @@ std::vector<Vertex> Mesh::calcVerticies()
 
         vertex.textureId = DEFAULT_MESH_TEXTURE;
 
-        vertices.push_back(vertex);
+        result.push_back(vertex);
       }
     }
   }
 
-  return vertices;
+  return result;
 }
 
 std::vector<uint32_t> Mesh::calcIndices()
 {
-  std::vector<uint32_t> indices;
+  std::vector<uint32_t> result;
   uint32_t vertexOffset = 0;
 
   for (const auto &mesh : model.meshes)
@@ -271,11 +271,11 @@ std::vector<uint32_t> Mesh::calcIndices()
 
       if (primitive.indices < 0)
       {
-        indices.reserve(indices.size() + posAccessor.count);
+        result.reserve(result.size() + posAccessor.count);
 
         for (size_t i = 0; i < posAccessor.count; i++)
         {
-          indices.push_back(vertexOffset + static_cast<uint32_t>(i));
+          result.push_back(vertexOffset + static_cast<uint32_t>(i));
         }
 
         vertexOffset += static_cast<uint32_t>(posAccessor.count);
@@ -284,12 +284,12 @@ std::vector<uint32_t> Mesh::calcIndices()
 
       const tinygltf::Accessor &indexAccessor = model.accessors[primitive.indices];
       const tinygltf::BufferView &indexBufferView = model.bufferViews[indexAccessor.bufferView];
-      const tinygltf::Buffer &indexBuffer = model.buffers[indexBufferView.buffer];
+      const tinygltf::Buffer &indexSourceBuffer = model.buffers[indexBufferView.buffer];
 
-      const unsigned char *indexData = &indexBuffer.data[indexBufferView.byteOffset + indexAccessor.byteOffset];
+      const unsigned char *indexData = &indexSourceBuffer.data[indexBufferView.byteOffset + indexAccessor.byteOffset];
       size_t indexCount = indexAccessor.count;
 
-      indices.reserve(indices.size() + indexCount);
+      result.reserve(result.size() + indexCount);
 
       for (size_t i = 0; i < indexCount; i++)
       {
@@ -312,14 +312,14 @@ std::vector<uint32_t> Mesh::calcIndices()
           break;
         }
 
-        indices.push_back(vertexOffset + index);
+        result.push_back(vertexOffset + index);
       }
 
       vertexOffset += static_cast<uint32_t>(posAccessor.count);
     }
   }
 
-  return indices;
+  return result;
 }
 
 void Mesh::createVertexBuffer()

@@ -4,12 +4,12 @@ A voxel terrain engine in C++20 on Vulkan 1.3 (vulkan-hpp RAII), using GLFW and 
 
 ## Build and run
 
-- **Build:** `build.bat` (runs `mingw32-make -j%NUMBER_OF_PROCESSORS%`), or `mingw32-make -jN` directly. Clean with `mingw32-make clean`. In VS Code, the default build task runs `build.bat`.
+- **Build:** `build.bat` (runs `mingw32-make -j%NUMBER_OF_PROCESSORS%` plus any arguments, e.g. `build.bat release`), or `mingw32-make -jN` directly. Clean with `mingw32-make clean`. In VS Code, the default build task runs `build.bat`.
 - **Required environment variables:** `VULKAN_SDK` and `GLFW_PATH` (GLFW libs are expected in `$(GLFW_PATH)/lib-mingw-w64`).
-- **Shaders are not built by make.** After editing `shaders/shader.slang`, run `compile_shaders.bat` (slangc), which writes `slang.spv` to the repo root.
-- **Run `main.exe` from the repo root.** `slang.spv`, `textures/` and `models/` are all loaded by relative path.
-- The only build is a debug build: `-O0 -g -D DEBUG`, and `NDEBUG` is never defined. As a result, asserts are always on and Vulkan validation layers are always enabled (`src/renderer/vk.hpp`). Keep this in mind when reading performance numbers.
-- `build.sh` (macOS) is stale and broken. Don't use it.
+- **Configurations:** the default target is the debug build `main.exe` (`-O0 -g -D DEBUG`, objects in `build/`). `mingw32-make release` (or `build.bat release`) builds `main-release.exe` (`-O2 -D NDEBUG`, objects in `build-release/`). Each configuration has its own precompiled header in its object directory. In the debug build, asserts and Vulkan validation layers are on (`src/renderer/vk.hpp`); in the release build both are off. Keep this in mind when reading performance numbers.
+- **Warnings:** project code is compiled with `-Wall -Wextra -Wpedantic -Wshadow` (`-Wmissing-field-initializers` is off, because designated initializers leave fields out on purpose). Vendored headers are included with `-isystem` and `src/imgui/` is compiled without warnings. Both configurations must build with no warnings; the release build at `-O2` reports some warnings the debug build doesn't.
+- **Shaders are built by make.** `slang.spv` and `cull.spv` are rebuilt from `shaders/shader.slang` and `shaders/cull.slang` (slangc) as part of both builds; `mingw32-make shaders` or `compile_shaders.bat` builds only them. They are written to the repo root.
+- At startup `main()` sets the working directory to the folder containing the exe, so `slang.spv`, `cull.spv`, `textures/`, `models/` and `imgui.ini` resolve next to it wherever the exe is launched from.
 - There are no tests. To verify a change, build it and run it.
 
 ## Code layout
@@ -54,10 +54,10 @@ Each task is a GitHub issue. Handle each one with these steps, in order.
 2. **Plan.** Read the code the issue points at. Its permalinks point to commit `f91528e`, so line numbers may have drifted. Work out the approach and the files that will change. If the issue is ambiguous, has more than one reasonable design, or would grow well beyond its stated scope, ask the user before writing code. Fix only what the issue describes, and mention any unrelated problems you notice instead of fixing them.
 3. **Implement.** Create a branch from `main` named `<type>/<N>-<short-slug>`, for example `fix/5-empty-mesh-assert` or `perf/11-column-cache`. Make the change, then:
    - build with `build.bat`. The build must succeed with no new warnings;
-   - run `compile_shaders.bat` if `shaders/` changed;
+   - shaders are rebuilt by make; check the build output for slangc errors if `shaders/` changed;
    - verify what you can. There are no tests and the result can't be seen visually, so tell the user exactly what to try in the running app.
 4. **Review.** Before committing, spawn a fresh review subagent (`Agent` tool, general-purpose). Give it the issue number and tell it to review the uncommitted diff (`git diff`) for correctness, thread safety, Vulkan lifetime and synchronization problems, and anything the issue required but the change missed. Fix the real findings. If the fixes are substantial, run the review again. Don't commit until the review is clean or the remaining findings have been explained as not applicable.
-5. **Commit.** One commit per issue unless the user says otherwise. The message is **one line**: a conventional prefix (`fix:`, `feat:`, `perf:`, `refactor:`, `chore:`, `docs:`, `build:`, `test:`), then a short, simple description in lowercase and imperative mood, with no trailing period. Example: `fix: skip gpu allocation for empty chunk meshes`. **No `Co-Authored-By` or any other trailer, and no body.** Stage only files that belong to the change: never `imgui.ini`, `build/`, `main.exe` or `*.gch`.
+5. **Commit.** One commit per issue unless the user says otherwise. The message is **one line**: a conventional prefix (`fix:`, `feat:`, `perf:`, `refactor:`, `chore:`, `docs:`, `build:`, `test:`), then a short, simple description in lowercase and imperative mood, with no trailing period. Example: `fix: skip gpu allocation for empty chunk meshes`. **No `Co-Authored-By` or any other trailer, and no body.** Stage only files that belong to the change: never `imgui.ini`, `build/`, `build-release/`, `main.exe`, `main-release.exe`, `*.spv` or `*.gch`.
 6. **Open a PR.** Push with `git push -u origin <branch>`. Then run `gh pr create --base main`, using the commit message as the title. The body has a short summary of the change, how it was verified (plus what the user should test by hand), and `Fixes #<N>` so that merging closes the issue. **No "Generated with Claude Code" footer or other AI attribution.** Report the PR link and **stop**. The user reviews and merges. Never merge PRs yourself and never push to `main`.
 
 If `gh` is not found, call it by its full path: `"/c/Program Files/GitHub CLI/gh.exe"`.

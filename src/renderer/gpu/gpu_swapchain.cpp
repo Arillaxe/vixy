@@ -6,10 +6,10 @@
 #include <cassert>
 
 GpuSwapchain::GpuSwapchain(GpuContext &context, Window &win, GpuResource &resource, std::vector<GpuSynchronization> &synchronization)
-    : gpuContext(context),
+    : window(win),
+      gpuContext(context),
       gpuResource(resource),
       gpuSynchronization(synchronization),
-      window(win),
       capabilities(getCapabilities()),
       extent(getSwapExtent()),
       surfaceFormat(findSurfaceFormat()),
@@ -107,13 +107,13 @@ vk::raii::SwapchainKHR GpuSwapchain::createSwapchain(const vk::SwapchainKHR &old
 
 std::vector<vk::raii::ImageView> GpuSwapchain::createImageViews()
 {
-  std::vector<vk::raii::ImageView> imageViews;
+  std::vector<vk::raii::ImageView> views;
 
-  imageViews.reserve(images.size());
+  views.reserve(images.size());
 
   for (auto &image : images)
   {
-    imageViews.emplace_back(
+    views.emplace_back(
         gpuResource.createImageView(
             image,
             surfaceFormat.format,
@@ -121,7 +121,7 @@ std::vector<vk::raii::ImageView> GpuSwapchain::createImageViews()
             1));
   }
 
-  return imageViews;
+  return views;
 }
 
 std::vector<vk::raii::Semaphore> GpuSwapchain::createRenderFinishedSemaphores()

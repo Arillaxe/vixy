@@ -12,7 +12,7 @@ vk::raii::ShaderModule GpuShader::createShaderModule(const std::vector<char> &co
       .codeSize = code.size() * sizeof(char),
       .pCode = reinterpret_cast<const uint32_t *>(code.data()),
   };
-  vk::raii::ShaderModule shaderModule(gpuContext.getDevice(), createInfo);
+  vk::raii::ShaderModule result(gpuContext.getDevice(), createInfo);
 
-  return shaderModule;
+  return result;
 }

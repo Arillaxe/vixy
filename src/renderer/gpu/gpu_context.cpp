@@ -165,27 +165,27 @@ vk::raii::PhysicalDevice GpuContext::pickPhysicalDevice()
 {
   std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
 
-  for (const auto &device : physicalDevices)
+  for (const auto &candidate : physicalDevices)
   {
-    if (isDeviceSuitable(device))
+    if (isDeviceSuitable(candidate))
     {
-      return device;
+      return candidate;
     }
   }
 
   throw std::runtime_error("failed to find a suitable GPU!");
 }
 
-bool GpuContext::isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice)
+bool GpuContext::isDeviceSuitable(vk::raii::PhysicalDevice const &candidate)
 {
-  bool supportsVulkan1_3 = physicalDevice.getProperties().apiVersion >= vk::ApiVersion13;
+  bool supportsVulkan1_3 = candidate.getProperties().apiVersion >= vk::ApiVersion13;
 
-  auto queueFamilies = physicalDevice.getQueueFamilyProperties();
+  auto queueFamilies = candidate.getQueueFamilyProperties();
   bool supportsGraphics = std::ranges::any_of(
       queueFamilies, [](auto const &qfp)
       { return !!(qfp.queueFlags & vk::QueueFlagBits::eGraphics); });
 
-  auto availableDeviceExtensions = physicalDevice.enumerateDeviceExtensionProperties();
+  auto availableDeviceExtensions = candidate.enumerateDeviceExtensionProperties();
   bool supportsAllRequiredExtensions =
       std::ranges::all_of(
           requiredDeviceExtension,
@@ -197,7 +197,7 @@ bool GpuContext::isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice
                 { return strcmp(availableDeviceExtension.extensionName, requiredDeviceExtension) == 0; });
           });
 
-  auto features = physicalDevice.template getFeatures2<
+  auto features = candidate.template getFeatures2<
       vk::PhysicalDeviceFeatures2,
       vk::PhysicalDeviceVulkan11Features,
       vk::PhysicalDeviceVulkan12Features,
@@ -213,7 +213,7 @@ bool GpuContext::isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice
       features.template get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
       features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering;
 
-  bool supportsMultisampling = selectMsaaSamples(physicalDevice) != vk::SampleCountFlagBits::e1;
+  bool supportsMultisampling = selectMsaaSamples(candidate) != vk::SampleCountFlagBits::e1;
 
   return supportsVulkan1_3 && supportsGraphics && supportsAllRequiredExtensions &&
          supportsRequiredFeatures && supportsMultisampling;

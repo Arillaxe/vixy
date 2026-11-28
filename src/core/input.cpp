@@ -24,7 +24,6 @@ void Input::pollEvents()
   static auto lastTime = startTime;
 
   auto currentTime = std::chrono::high_resolution_clock::now();
-  float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
   float deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastTime).count();
 
   lastTime = currentTime;

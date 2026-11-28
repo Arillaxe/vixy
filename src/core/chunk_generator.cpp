@@ -99,7 +99,6 @@ Chunk ChunkGenerator::generateChunk(int chunkX, int chunkY, int chunkZ, const He
   chunk.pos = {chunkX, chunkY, chunkZ};
 
   int chunkBottom = chunkY * CHUNK_SIZE;
-  int chunkTop = chunkBottom + CHUNK_SIZE - 1;
 
   for (int localX = 0; localX < CHUNK_SIZE; ++localX)
   {
