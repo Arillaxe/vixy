@@ -72,7 +72,7 @@ public:
 protected:
   virtual void onInit() {}
   virtual void onDestroy() {}
-  virtual void update(float deltaTime) {}
+  virtual void update(float) {}
   virtual void render() {}
 
   friend class Entity;

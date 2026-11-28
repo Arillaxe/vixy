@@ -30,7 +30,6 @@ void GpuUbo::updateUniformBuffer(Camera &camera, uint32_t frameIndex)
   static auto lastTime = startTime;
 
   auto currentTime = std::chrono::high_resolution_clock::now();
-  float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
   float deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastTime).count();
 
   lastTime = currentTime;

@@ -260,7 +260,7 @@ vk::raii::DescriptorSet MainPipeline::createDescriptorSet()
       .pSetLayouts = &*descriptorSetLayout,
   };
 
-  auto descriptorSet = std::move(gpuContext.getDevice().allocateDescriptorSets(allocInfo).front());
+  auto set = std::move(gpuContext.getDevice().allocateDescriptorSets(allocInfo).front());
 
   vk::DescriptorBufferInfo bufferInfo{
       .buffer = gpuUbo.getUniformBuffer(),
@@ -270,7 +270,7 @@ vk::raii::DescriptorSet MainPipeline::createDescriptorSet()
 
   std::array<vk::WriteDescriptorSet, 1> descriptorWrite{{
       {
-          .dstSet = descriptorSet,
+          .dstSet = set,
           .dstBinding = 0,
           .dstArrayElement = 0,
           .descriptorCount = 1,
@@ -281,5 +281,5 @@ vk::raii::DescriptorSet MainPipeline::createDescriptorSet()
 
   gpuContext.getDevice().updateDescriptorSets(descriptorWrite, {});
 
-  return descriptorSet;
+  return set;
 }

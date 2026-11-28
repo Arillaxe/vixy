@@ -1,7 +1,9 @@
 main.exe
+main-release.exe
 slang.spv
 cull.spv
 main
 build/
+build-release/
 src/pch.hpp.gch
 src/pch.hpp.d

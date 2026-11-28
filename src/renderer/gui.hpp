@@ -52,7 +52,7 @@ public:
         .depthAttachmentFormat = depthFormat,
     };
 
-    ImGui_ImplVulkan_PipelineInfo pipelineInfo;
+    ImGui_ImplVulkan_PipelineInfo pipelineInfo{};
     pipelineInfo.PipelineRenderingCreateInfo = renderingInfo;
     pipelineInfo.RenderPass = nullptr;
     pipelineInfo.MSAASamples = static_cast<VkSampleCountFlagBits>(gpuContext.getMsaaSamples());

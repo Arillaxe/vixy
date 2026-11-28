@@ -35,7 +35,7 @@ private:
       void *);
   vk::raii::SurfaceKHR createSurface();
   vk::raii::PhysicalDevice pickPhysicalDevice();
-  bool isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice);
+  bool isDeviceSuitable(vk::raii::PhysicalDevice const &candidate);
   uint32_t pickQueueFamilyIndex();
   uint32_t pickTransferQueueFamilyIndex();
   uint32_t pickTransferQueueSlot();

@@ -59,7 +59,7 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMes
 			textureManager(gpuResource),
 			sampler(createSampler())
 {
-	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+	for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 	{
 		gpuSynchronization.emplace_back(gpuContext);
 	}
@@ -69,7 +69,7 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMes
 
 	for (uint32_t slot = 0; slot < BLOCK_TEXTURE_COUNT; slot++)
 	{
-		uint32_t id = loadTexture(BLOCK_TEXTURE_PATHS[slot]);
+		[[maybe_unused]] uint32_t id = loadTexture(BLOCK_TEXTURE_PATHS[slot]);
 		assert(id == slot);
 	}
 }
@@ -345,10 +345,13 @@ void Renderer::render()
 	{
 		auto queryPoolResult = (*gpuContext.getDevice()).getQueryPoolResults(*queryPool, frameIndex * 2, 2, sizeof(timestamps), timestamps.data(), sizeof(uint64_t), vk::QueryResultFlagBits::e64);
 
-		gpuMs =
-				(timestamps[1] - timestamps[0]) *
-				gpuContext.getPhysicalDevice().getProperties().limits.timestampPeriod /
-				1'000'000.0;
+		if (queryPoolResult == vk::Result::eSuccess)
+		{
+			gpuMs =
+					(timestamps[1] - timestamps[0]) *
+					gpuContext.getPhysicalDevice().getProperties().limits.timestampPeriod /
+					1'000'000.0;
+		}
 	}
 
 	uint32_t imageIndex = gpuSwapchain.acquireNextImage(frameIndex);

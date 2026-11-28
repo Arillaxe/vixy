@@ -258,10 +258,6 @@ void ChunkSystem::update()
 
   glm::vec3 cameraPosition = getViewerPosition();
 
-  constexpr int chunkWorldSize = CHUNK_SIZE * VOXEL_SIZE;
-  int centerX = floorDiv((int)cameraPosition.x, chunkWorldSize);
-  int centerZ = floorDiv((int)cameraPosition.z, chunkWorldSize);
-
   auto desiredChunks = getChunksAround(cameraPosition);
 
   std::unordered_set<glm::ivec2> dirtyChunks;
