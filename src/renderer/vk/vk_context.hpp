@@ -15,8 +15,10 @@ private:
   vk::raii::DebugUtilsMessengerEXT debugMessenger;
   vk::raii::SurfaceKHR surface;
   vk::raii::PhysicalDevice physicalDevice;
+  vk::SampleCountFlagBits msaaSamples;
   uint32_t queueIndex = ~0;
   uint32_t transferQueueIndex = ~0;
+  uint32_t transferQueueSlot = 0;
   vk::raii::Device device;
   vk::raii::Queue queue;
   vk::raii::Queue transferQueue;
@@ -36,6 +38,8 @@ private:
   bool isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice);
   uint32_t pickQueueFamilyIndex();
   uint32_t pickTransferQueueFamilyIndex();
+  uint32_t pickTransferQueueSlot();
+  bool sharesQueue() const { return transferQueueIndex == queueIndex && transferQueueSlot == 0; }
   vk::raii::Device createDevice();
   vk::raii::Queue createQueue();
   vk::raii::Queue createTransferQueue();
@@ -51,7 +55,9 @@ public:
   vk::raii::Queue &getQueue() { return queue; }
   vk::raii::Queue &getTransferQueue() { return transferQueue; }
   std::mutex &getQueueMutex() { return queueMutex; }
-  std::mutex &getTransferQueueMutex() { return transferQueueMutex; }
+  std::mutex &getTransferQueueMutex();
+  bool hasSeparateTransferFamily() const { return transferQueueIndex != queueIndex; }
+  vk::SampleCountFlagBits getMsaaSamples() const { return msaaSamples; }
   void waitIdle();
   vk::raii::Instance &getInstance() { return instance; }
 };

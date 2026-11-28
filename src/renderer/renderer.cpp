@@ -366,7 +366,10 @@ void Renderer::render()
 
 	// drawGUI();
 
-	gui.endFrame(commandBuffer);
+	{
+		std::lock_guard lock(vkContext.getQueueMutex());
+		gui.endFrame(commandBuffer);
+	}
 
 	// end GUI
 
