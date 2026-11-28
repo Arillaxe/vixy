@@ -4,7 +4,6 @@
 #include <cassert>
 #include <chrono>
 #include <cstring>
-#include <glm/gtc/matrix_transform.hpp>
 
 VkUbo::VkUbo(VkContext &context, VkResource &resource, VkSwapchain &swapchain)
     : vkContext(context),
@@ -38,10 +37,8 @@ void VkUbo::updateUniformBuffer(Camera &camera, uint32_t frameIndex)
 
   UniformBufferObject ubo{};
 
-  ubo.view =
-      glm::mat4_cast(glm::conjugate(camera.rotation)) *
-      glm::translate(glm::mat4(1.0f), -camera.position);
-  ubo.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(vkSwapchain.getExtent().width) / static_cast<float>(vkSwapchain.getExtent().height), 0.1f, 100000.0f);
+  ubo.view = camera.viewMatrix();
+  ubo.projection = camera.projectionMatrix(static_cast<float>(vkSwapchain.getExtent().width) / static_cast<float>(vkSwapchain.getExtent().height));
   ubo.projection[1][1] *= -1;
   ubo.cameraPosition = camera.position;
   ubo.deltaTime = deltaTime * 1000;
