@@ -1,9 +1,9 @@
 #ifndef MAIN_PIPELINE_HPP
 #define MAIN_PIPELINE_HPP
 
-#include <renderer/vk/vk_pipeline.hpp>
+#include <renderer/gpu/gpu_pipeline.hpp>
 
-class MainPipeline : public Vk_Pipeline
+class MainPipeline : public GpuPipeline
 {
 private:
   vk::raii::Pipeline entityPipeline = nullptr;
@@ -18,7 +18,7 @@ protected:
   vk::raii::DescriptorSet createDescriptorSet() override;
 
 public:
-  MainPipeline(VkContext &context, VkSwapchain &swapchain, VkResource &resource);
+  MainPipeline(GpuContext &context, GpuSwapchain &swapchain, GpuResource &resource);
 
   vk::raii::Pipeline &getEntityPipeline() { return entityPipeline; }
 };

@@ -6,9 +6,9 @@
 #include <imgui/imgui_impl_vulkan.h>
 
 #include <core/window.hpp>
-#include <renderer/vk/vk_context.hpp>
-#include <renderer/vk/vk_resource.hpp>
-#include <renderer/vk/vk_swapchain.hpp>
+#include <renderer/gpu/gpu_context.hpp>
+#include <renderer/gpu/gpu_resource.hpp>
+#include <renderer/gpu/gpu_swapchain.hpp>
 
 inline void check_vk_result(VkResult err)
 {
@@ -23,20 +23,19 @@ class GUI
 {
 private:
   Window &window;
-  VkContext &vkContext;
-  VkResource &vkResource;
-  VkSwapchain &vkSwapchain;
+  GpuContext &gpuContext;
+  GpuResource &gpuResource;
+  GpuSwapchain &gpuSwapchain;
 
 public:
-  GUI(Window &win, VkContext &context, VkResource &resource, VkSwapchain &swapchain)
-      : window(win), vkContext(context), vkResource(resource), vkSwapchain(swapchain)
+  GUI(Window &win, GpuContext &context, GpuResource &resource, GpuSwapchain &swapchain)
+      : window(win), gpuContext(context), gpuResource(resource), gpuSwapchain(swapchain)
   {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos;
-    // io.ConfigNavMoveSetMousePos = true;
     io.DisplaySize.x = (float)swapchain.getExtent().width;
     io.DisplaySize.y = (float)swapchain.getExtent().height;
 
@@ -56,24 +55,24 @@ public:
     ImGui_ImplVulkan_PipelineInfo pipelineInfo;
     pipelineInfo.PipelineRenderingCreateInfo = renderingInfo;
     pipelineInfo.RenderPass = nullptr;
-    pipelineInfo.MSAASamples = static_cast<VkSampleCountFlagBits>(vkContext.getMsaaSamples());
+    pipelineInfo.MSAASamples = static_cast<VkSampleCountFlagBits>(gpuContext.getMsaaSamples());
 
-    ImGui_ImplVulkan_InitInfo init_info{
-        .Instance = *vkContext.getInstance(),
-        .PhysicalDevice = *vkContext.getPhysicalDevice(),
-        .Device = *vkContext.getDevice(),
-        .QueueFamily = vkContext.getQueueFamilyIndex(),
-        .Queue = *vkContext.getQueue(),
-        .DescriptorPool = *vkResource.getDescriptorPool(),
+    ImGui_ImplVulkan_InitInfo initInfo{
+        .Instance = *gpuContext.getInstance(),
+        .PhysicalDevice = *gpuContext.getPhysicalDevice(),
+        .Device = *gpuContext.getDevice(),
+        .QueueFamily = gpuContext.getQueueFamilyIndex(),
+        .Queue = *gpuContext.getQueue(),
+        .DescriptorPool = *gpuResource.getDescriptorPool(),
         .MinImageCount = 2,
         .ImageCount = 2,
         .UseDynamicRendering = true,
         .CheckVkResultFn = check_vk_result,
     };
 
-    init_info.PipelineInfoMain = pipelineInfo;
+    initInfo.PipelineInfoMain = pipelineInfo;
 
-    ImGui_ImplVulkan_Init(&init_info);
+    ImGui_ImplVulkan_Init(&initInfo);
   }
 
   ~GUI()

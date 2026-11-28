@@ -27,7 +27,6 @@ public:
 
   void loadColumn(int x, int z);
   void unloadColumn(int x, int z);
-  bool isChunkResolved(int x, int y, int z) const;
   bool isImplicitSolid(int x, int y, int z) const;
   bool isSolid(int x, int y, int z) const;
   std::vector<Chunk *> getColumnChunks(int x, int z);

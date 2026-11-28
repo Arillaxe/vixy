@@ -1,23 +1,23 @@
-#ifndef VK_SHADER_HPP
-#define VK_SHADER_HPP
+#ifndef GPU_SHADER_HPP
+#define GPU_SHADER_HPP
 
 #include <renderer/vk.hpp>
-#include <renderer/vk/vk_context.hpp>
+#include <renderer/gpu/gpu_context.hpp>
 #include <string>
 #include <vector>
 
-class VkShader
+class GpuShader
 {
 private:
-  VkContext &vkContext;
+  GpuContext &gpuContext;
   vk::raii::ShaderModule shaderModule;
 
   vk::raii::ShaderModule createShaderModule(const std::vector<char> &code) const;
 
 public:
-  VkShader(VkContext &context, const std::string &filename);
+  GpuShader(GpuContext &context, const std::string &filename);
 
   vk::raii::ShaderModule &getShaderModule() { return shaderModule; }
 };
 
-#endif // VK_SHADER_HPP
+#endif // GPU_SHADER_HPP

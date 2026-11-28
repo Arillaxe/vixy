@@ -1,14 +1,14 @@
-#include <renderer/vk/vk_swapchain.hpp>
+#include <renderer/gpu/gpu_swapchain.hpp>
 
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
 #include <cassert>
 
-VkSwapchain::VkSwapchain(VkContext &context, Window &win, VkResource &resource, std::vector<VkSynchronization> &synchronization)
-    : vkContext(context),
-      vkResource(resource),
-      vkSynchronization(synchronization),
+GpuSwapchain::GpuSwapchain(GpuContext &context, Window &win, GpuResource &resource, std::vector<GpuSynchronization> &synchronization)
+    : gpuContext(context),
+      gpuResource(resource),
+      gpuSynchronization(synchronization),
       window(win),
       capabilities(getCapabilities()),
       extent(getSwapExtent()),
@@ -17,21 +17,21 @@ VkSwapchain::VkSwapchain(VkContext &context, Window &win, VkResource &resource, 
       images(swapchain.getImages()),
       imageViews(createImageViews()),
       renderFinishedSemaphores(createRenderFinishedSemaphores()),
-      depthImage(resource.createImage(extent.width, extent.height, 1, vkContext.getMsaaSamples(), findDepthFormat(), vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment)),
+      depthImage(resource.createImage(extent.width, extent.height, 1, gpuContext.getMsaaSamples(), findDepthFormat(), vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment)),
       depthImageMemory(resource.getImageMemory(depthImage, vk::MemoryPropertyFlagBits::eDeviceLocal)),
       depthImageView(resource.createImageView(depthImage, findDepthFormat(), vk::ImageAspectFlagBits::eDepth, 1)),
-      colorImage(resource.createImage(extent.width, extent.height, 1, vkContext.getMsaaSamples(), surfaceFormat.format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment)),
+      colorImage(resource.createImage(extent.width, extent.height, 1, gpuContext.getMsaaSamples(), surfaceFormat.format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment)),
       colorImageMemory(resource.getImageMemory(colorImage, vk::MemoryPropertyFlagBits::eDeviceLocal)),
       colorImageView(resource.createImageView(colorImage, surfaceFormat.format, vk::ImageAspectFlagBits::eColor, 1)) {}
 
-vk::SurfaceCapabilitiesKHR VkSwapchain::getCapabilities()
+vk::SurfaceCapabilitiesKHR GpuSwapchain::getCapabilities()
 {
-  return vkContext
+  return gpuContext
       .getPhysicalDevice()
-      .getSurfaceCapabilitiesKHR(vkContext.getSurface());
+      .getSurfaceCapabilitiesKHR(gpuContext.getSurface());
 }
 
-vk::Extent2D VkSwapchain::getSwapExtent()
+vk::Extent2D GpuSwapchain::getSwapExtent()
 {
   if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
   {
@@ -47,12 +47,12 @@ vk::Extent2D VkSwapchain::getSwapExtent()
   };
 }
 
-vk::SurfaceFormatKHR VkSwapchain::findSurfaceFormat()
+vk::SurfaceFormatKHR GpuSwapchain::findSurfaceFormat()
 {
   std::vector<vk::SurfaceFormatKHR> formats =
-      vkContext
+      gpuContext
           .getPhysicalDevice()
-          .getSurfaceFormatsKHR(vkContext.getSurface());
+          .getSurfaceFormatsKHR(gpuContext.getSurface());
 
   const auto formatIt = std::ranges::find_if(
       formats, [](const auto &format)
@@ -62,12 +62,12 @@ vk::SurfaceFormatKHR VkSwapchain::findSurfaceFormat()
   return formatIt != formats.end() ? *formatIt : formats[0];
 }
 
-vk::PresentModeKHR VkSwapchain::getPresentMode()
+vk::PresentModeKHR GpuSwapchain::getPresentMode()
 {
   std::vector<vk::PresentModeKHR> presentModes =
-      vkContext
+      gpuContext
           .getPhysicalDevice()
-          .getSurfacePresentModesKHR(vkContext.getSurface());
+          .getSurfacePresentModesKHR(gpuContext.getSurface());
 
   return std::ranges::any_of(
              presentModes, [](const auto mode)
@@ -76,7 +76,7 @@ vk::PresentModeKHR VkSwapchain::getPresentMode()
              : vk::PresentModeKHR::eFifo;
 }
 
-vk::raii::SwapchainKHR VkSwapchain::createSwapchain(const vk::SwapchainKHR &oldSwapchain)
+vk::raii::SwapchainKHR GpuSwapchain::createSwapchain(const vk::SwapchainKHR &oldSwapchain)
 {
   auto minImageCount = std::max(3u, capabilities.minImageCount);
 
@@ -86,7 +86,7 @@ vk::raii::SwapchainKHR VkSwapchain::createSwapchain(const vk::SwapchainKHR &oldS
   }
 
   vk::SwapchainCreateInfoKHR swapChainCreateInfo{
-      .surface = vkContext.getSurface(),
+      .surface = gpuContext.getSurface(),
       .minImageCount = minImageCount,
       .imageFormat = surfaceFormat.format,
       .imageColorSpace = surfaceFormat.colorSpace,
@@ -102,10 +102,10 @@ vk::raii::SwapchainKHR VkSwapchain::createSwapchain(const vk::SwapchainKHR &oldS
 
   swapChainCreateInfo.oldSwapchain = oldSwapchain;
 
-  return vk::raii::SwapchainKHR(vkContext.getDevice(), swapChainCreateInfo);
+  return vk::raii::SwapchainKHR(gpuContext.getDevice(), swapChainCreateInfo);
 }
 
-std::vector<vk::raii::ImageView> VkSwapchain::createImageViews()
+std::vector<vk::raii::ImageView> GpuSwapchain::createImageViews()
 {
   std::vector<vk::raii::ImageView> imageViews;
 
@@ -114,7 +114,7 @@ std::vector<vk::raii::ImageView> VkSwapchain::createImageViews()
   for (auto &image : images)
   {
     imageViews.emplace_back(
-        vkResource.createImageView(
+        gpuResource.createImageView(
             image,
             surfaceFormat.format,
             vk::ImageAspectFlagBits::eColor,
@@ -124,20 +124,20 @@ std::vector<vk::raii::ImageView> VkSwapchain::createImageViews()
   return imageViews;
 }
 
-std::vector<vk::raii::Semaphore> VkSwapchain::createRenderFinishedSemaphores()
+std::vector<vk::raii::Semaphore> GpuSwapchain::createRenderFinishedSemaphores()
 {
   std::vector<vk::raii::Semaphore> semaphores;
   semaphores.reserve(images.size());
 
   for (size_t i = 0; i < images.size(); ++i)
   {
-    semaphores.emplace_back(vkContext.getDevice(), vk::SemaphoreCreateInfo{});
+    semaphores.emplace_back(gpuContext.getDevice(), vk::SemaphoreCreateInfo{});
   }
 
   return semaphores;
 }
 
-vk::Format VkSwapchain::findDepthFormat()
+vk::Format GpuSwapchain::findDepthFormat()
 {
   return findSupportedFormat(
       {vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint},
@@ -145,11 +145,11 @@ vk::Format VkSwapchain::findDepthFormat()
       vk::FormatFeatureFlagBits::eDepthStencilAttachment);
 }
 
-vk::Format VkSwapchain::findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
+vk::Format GpuSwapchain::findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
 {
   for (const auto format : candidates)
   {
-    vk::FormatProperties props = vkContext.getPhysicalDevice().getFormatProperties(format);
+    vk::FormatProperties props = gpuContext.getPhysicalDevice().getFormatProperties(format);
 
     if (
         (tiling == vk::ImageTiling::eLinear && (props.linearTilingFeatures & features) == features) ||
@@ -162,7 +162,7 @@ vk::Format VkSwapchain::findSupportedFormat(const std::vector<vk::Format> &candi
   throw std::runtime_error("failed to find supported format!");
 }
 
-void VkSwapchain::recreateSwapchain()
+void GpuSwapchain::recreateSwapchain()
 {
   int width = 0;
   int height = 0;
@@ -175,7 +175,7 @@ void VkSwapchain::recreateSwapchain()
     glfwWaitEvents();
   }
 
-  vkContext.waitIdle();
+  gpuContext.waitIdle();
 
   auto oldSwapchain = std::move(swapchain);
 
@@ -190,17 +190,17 @@ void VkSwapchain::recreateSwapchain()
   renderFinishedSemaphores.clear();
   renderFinishedSemaphores = createRenderFinishedSemaphores();
 
-  depthImage = vkResource.createImage(extent.width, extent.height, 1, vkContext.getMsaaSamples(), findDepthFormat(), vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment);
-  depthImageMemory = vkResource.getImageMemory(depthImage, vk::MemoryPropertyFlagBits::eDeviceLocal);
-  depthImageView = vkResource.createImageView(depthImage, findDepthFormat(), vk::ImageAspectFlagBits::eDepth, 1);
-  colorImage = vkResource.createImage(extent.width, extent.height, 1, vkContext.getMsaaSamples(), surfaceFormat.format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment);
-  colorImageMemory = vkResource.getImageMemory(colorImage, vk::MemoryPropertyFlagBits::eDeviceLocal);
-  colorImageView = vkResource.createImageView(colorImage, surfaceFormat.format, vk::ImageAspectFlagBits::eColor, 1);
+  depthImage = gpuResource.createImage(extent.width, extent.height, 1, gpuContext.getMsaaSamples(), findDepthFormat(), vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment);
+  depthImageMemory = gpuResource.getImageMemory(depthImage, vk::MemoryPropertyFlagBits::eDeviceLocal);
+  depthImageView = gpuResource.createImageView(depthImage, findDepthFormat(), vk::ImageAspectFlagBits::eDepth, 1);
+  colorImage = gpuResource.createImage(extent.width, extent.height, 1, gpuContext.getMsaaSamples(), surfaceFormat.format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment);
+  colorImageMemory = gpuResource.getImageMemory(colorImage, vk::MemoryPropertyFlagBits::eDeviceLocal);
+  colorImageView = gpuResource.createImageView(colorImage, surfaceFormat.format, vk::ImageAspectFlagBits::eColor, 1);
 }
 
-uint32_t VkSwapchain::acquireNextImage(uint32_t frameIndex)
+uint32_t GpuSwapchain::acquireNextImage(uint32_t frameIndex)
 {
-  auto [result, imageIndex] = swapchain.acquireNextImage(UINT64_MAX, *vkSynchronization[frameIndex].getPresentCompleteSemaphore(), nullptr);
+  auto [result, imageIndex] = swapchain.acquireNextImage(UINT64_MAX, *gpuSynchronization[frameIndex].getPresentCompleteSemaphore(), nullptr);
 
   if (result == vk::Result::eErrorOutOfDateKHR)
   {

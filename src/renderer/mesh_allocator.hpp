@@ -5,7 +5,7 @@
 #include <variant>
 #include <core/arena_allocator.hpp>
 #include <renderer/vertex.hpp>
-#include <renderer/vk/vk_resource.hpp>
+#include <renderer/gpu/gpu_resource.hpp>
 
 constexpr uint32_t VERTEX_BUFFER_SIZE = 64 * 1024 * 1024; // 64 MiB
 constexpr uint32_t INDEX_BUFFER_SIZE = 32 * 1024 * 1024;  // 32 MiB
@@ -37,7 +37,7 @@ using ChunkMeshMessage = std::variant<ChunkMeshLoad, ChunkMeshUnload>;
 class MeshAllocator
 {
 private:
-  VkContext &vkContext;
+  GpuContext &gpuContext;
   vk::raii::Buffer &vertexBuffer;
   vk::raii::Buffer &indexBuffer;
   ArenaAllocator vertexAllocator;
@@ -57,7 +57,7 @@ private:
   void stage(const void *srcData, uint32_t srcSize, vk::raii::Buffer &dstBuffer, uint32_t dstOffset);
 
 public:
-  MeshAllocator(VkResource &resource, vk::raii::Buffer &vertexBuffer, vk::raii::Buffer &indexBuffer);
+  MeshAllocator(GpuResource &resource, vk::raii::Buffer &vertexBuffer, vk::raii::Buffer &indexBuffer);
   ~MeshAllocator();
   MeshAllocator(const MeshAllocator &) = delete;
   MeshAllocator &operator=(const MeshAllocator &) = delete;

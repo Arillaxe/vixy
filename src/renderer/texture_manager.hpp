@@ -3,7 +3,7 @@
 
 #include <renderer/texture.hpp>
 #include <vector>
-#include <renderer/vk/vk_resource.hpp>
+#include <renderer/gpu/gpu_resource.hpp>
 
 struct LoadedImage
 {
@@ -15,11 +15,11 @@ struct LoadedImage
 class TextureManager
 {
 private:
-  VkResource &vkResource;
+  GpuResource &gpuResource;
   std::vector<Texture> textures;
 
 public:
-  TextureManager(VkResource &resource);
+  TextureManager(GpuResource &resource);
 
   Texture &loadTexture(const std::string &filename);
 };

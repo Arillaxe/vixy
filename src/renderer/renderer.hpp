@@ -2,11 +2,11 @@
 #define RENDERER_HPP
 
 #include <core/window.hpp>
-#include <renderer/vk/vk_context.hpp>
-#include <renderer/vk/vk_command.hpp>
-#include <renderer/vk/vk_resource.hpp>
-#include <renderer/vk/vk_synchronization.hpp>
-#include <renderer/vk/vk_swapchain.hpp>
+#include <renderer/gpu/gpu_context.hpp>
+#include <renderer/gpu/gpu_command.hpp>
+#include <renderer/gpu/gpu_resource.hpp>
+#include <renderer/gpu/gpu_synchronization.hpp>
+#include <renderer/gpu/gpu_swapchain.hpp>
 #include <renderer/pipelines/main_pipeline.hpp>
 #include <renderer/pipelines/cull_pipeline.hpp>
 #include <core/scene.hpp>
@@ -28,11 +28,11 @@ class Renderer
 {
 private:
   Window &window;
-  VkContext vkContext;
-  VkCommand vkCommand;
-  VkResource vkResource;
-  std::vector<VkSynchronization> vkSynchronization;
-  VkSwapchain vkSwapchain;
+  GpuContext gpuContext;
+  GpuCommand gpuCommand;
+  GpuResource gpuResource;
+  std::vector<GpuSynchronization> gpuSynchronization;
+  GpuSwapchain gpuSwapchain;
   Scene &scene;
   vk::raii::CommandBuffers commandBuffers;
   MainPipeline mainPipeline;
@@ -48,12 +48,11 @@ private:
   std::array<std::vector<MeshAllocation>, MAX_FRAMES_IN_FLIGHT> pendingFrees;
   std::vector<MeshAllocation> unsubmittedFrees;
   GUI gui;
-  uint32_t meshQueueSize;
+  uint32_t meshQueueSize = 0;
   uint32_t totalIndices = 0;
-  double cpuMs;
-  double gpuMs;
+  double cpuMs = 0.0;
+  double gpuMs = 0.0;
   uint32_t frameIndex = 0;
-  bool wireframeMode = true;
   vk::raii::Buffer vertexBuffer;
   vk::raii::DeviceMemory vertexBufferMemory;
   vk::raii::Buffer indexBuffer;
@@ -72,29 +71,29 @@ private:
   TextureManager textureManager;
   vk::raii::Sampler sampler;
 
-  void transition_image_layout(
+  void transitionImageLayout(
       vk::raii::CommandBuffer &commandBuffer,
       vk::Image image,
-      vk::ImageLayout old_layout,
-      vk::ImageLayout new_layout,
-      vk::AccessFlags2 src_access_mask,
-      vk::AccessFlags2 dst_access_mask,
-      vk::PipelineStageFlags2 src_stage_mask,
-      vk::PipelineStageFlags2 dst_stage_mask,
-      vk::ImageAspectFlags image_aspect_flags);
+      vk::ImageLayout oldLayout,
+      vk::ImageLayout newLayout,
+      vk::AccessFlags2 srcAccessMask,
+      vk::AccessFlags2 dstAccessMask,
+      vk::PipelineStageFlags2 srcStageMask,
+      vk::PipelineStageFlags2 dstStageMask,
+      vk::ImageAspectFlags imageAspectFlags);
   void applyMeshMessages();
   void recordCulling(vk::raii::CommandBuffer &commandBuffer);
   void memoryBarrier(
       vk::raii::CommandBuffer &commandBuffer,
-      vk::PipelineStageFlags2 src_stage_mask,
-      vk::AccessFlags2 src_access_mask,
-      vk::PipelineStageFlags2 dst_stage_mask,
-      vk::AccessFlags2 dst_access_mask);
+      vk::PipelineStageFlags2 srcStageMask,
+      vk::AccessFlags2 srcAccessMask,
+      vk::PipelineStageFlags2 dstStageMask,
+      vk::AccessFlags2 dstAccessMask);
 
 public:
   Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMeshMessage> &mQueue, ThreadQueue<MeshAllocation> &fQueue);
 
-  VkResource &getVkResource() { return vkResource; }
+  GpuResource &getGpuResource() { return gpuResource; }
   std::pair<vk::raii::Buffer &, vk::raii::Buffer &> getBuffers() { return {vertexBuffer, indexBuffer}; }
   vk::raii::Buffer &getVertexBuffer() { return vertexBuffer; }
   vk::raii::Buffer &getIndexBuffer() { return indexBuffer; }
@@ -104,7 +103,6 @@ public:
   void render();
   void waitIdle();
   void drawGUI();
-  void toggleWireframeMode() { wireframeMode = !wireframeMode; }
 };
 
 #endif // RENDERER_HPP

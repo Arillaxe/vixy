@@ -1,29 +1,29 @@
-#ifndef VK_PIPELINE_HPP
-#define VK_PIPELINE_HPP
+#ifndef GPU_PIPELINE_HPP
+#define GPU_PIPELINE_HPP
 
 #include <renderer/vk.hpp>
-#include <renderer/vk/vk_context.hpp>
-#include <renderer/vk/vk_shader.hpp>
-#include <renderer/vk/vk_swapchain.hpp>
-#include <renderer/vk/vk_ubo.hpp>
+#include <renderer/gpu/gpu_context.hpp>
+#include <renderer/gpu/gpu_shader.hpp>
+#include <renderer/gpu/gpu_swapchain.hpp>
+#include <renderer/gpu/gpu_ubo.hpp>
 #include <renderer/vertex.hpp>
 #include <renderer/push.hpp>
 #include <array>
 #include <string>
 #include <vector>
 
-class Vk_Pipeline
+class GpuPipeline
 {
 protected:
-  VkContext &vkContext;
-  VkSwapchain &vkSwapchain;
-  VkResource &vkResource;
-  VkShader shader;
+  GpuContext &gpuContext;
+  GpuSwapchain &gpuSwapchain;
+  GpuResource &gpuResource;
+  GpuShader shader;
   vk::raii::DescriptorSetLayout descriptorSetLayout = nullptr;
   vk::raii::PipelineLayout pipelineLayout = nullptr;
   vk::raii::Pipeline pipeline = nullptr;
   vk::raii::DescriptorSet descriptorSet = nullptr;
-  VkUbo vkUbo;
+  GpuUbo gpuUbo;
 
   void initialize();
 
@@ -36,13 +36,13 @@ protected:
   vk::Format findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
 
 public:
-  Vk_Pipeline(VkContext &context, VkSwapchain &swapchain, VkResource &resource, const std::string &shaderFilename);
-  virtual ~Vk_Pipeline() = default;
+  GpuPipeline(GpuContext &context, GpuSwapchain &swapchain, GpuResource &resource, const std::string &shaderFilename);
+  virtual ~GpuPipeline() = default;
 
-  VkUbo &getVkUbo() { return vkUbo; }
+  GpuUbo &getGpuUbo() { return gpuUbo; }
   vk::raii::Pipeline &getPipeline() { return pipeline; }
   vk::raii::PipelineLayout &getPipelineLayout() { return pipelineLayout; }
   vk::raii::DescriptorSet &getDescriptorSet() { return descriptorSet; }
 };
 
-#endif // VK_PIPELINE_HPP
+#endif // GPU_PIPELINE_HPP

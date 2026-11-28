@@ -11,8 +11,8 @@ namespace
   }
 } // namespace
 
-MeshAllocator::MeshAllocator(VkResource &resource, vk::raii::Buffer &vBuffer, vk::raii::Buffer &iBuffer)
-    : vkContext(resource.getContext()),
+MeshAllocator::MeshAllocator(GpuResource &resource, vk::raii::Buffer &vBuffer, vk::raii::Buffer &iBuffer)
+    : gpuContext(resource.getContext()),
       vertexBuffer(vBuffer),
       indexBuffer(iBuffer),
       vertexAllocator(VERTEX_BUFFER_SIZE),
@@ -22,7 +22,7 @@ MeshAllocator::MeshAllocator(VkResource &resource, vk::raii::Buffer &vBuffer, vk
       stagingData(static_cast<uint8_t *>(stagingMemory.mapMemory(0, STAGING_BUFFER_SIZE))),
       commandPool(createCommandPool()),
       commandBuffer(createCommandBuffer()),
-      fence(vkContext.getDevice(), vk::FenceCreateInfo{}) {}
+      fence(gpuContext.getDevice(), vk::FenceCreateInfo{}) {}
 
 MeshAllocator::~MeshAllocator()
 {
@@ -31,7 +31,7 @@ MeshAllocator::~MeshAllocator()
 
   try
   {
-    (void)vkContext.getDevice().waitForFences(*fence, vk::True, UINT64_MAX);
+    (void)gpuContext.getDevice().waitForFences(*fence, vk::True, UINT64_MAX);
   }
   catch (...)
   {
@@ -42,10 +42,10 @@ vk::raii::CommandPool MeshAllocator::createCommandPool()
 {
   vk::CommandPoolCreateInfo poolInfo{
       .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-      .queueFamilyIndex = vkContext.getTransferQueueFamilyIndex(),
+      .queueFamilyIndex = gpuContext.getTransferQueueFamilyIndex(),
   };
 
-  return vk::raii::CommandPool(vkContext.getDevice(), poolInfo);
+  return vk::raii::CommandPool(gpuContext.getDevice(), poolInfo);
 }
 
 vk::raii::CommandBuffer MeshAllocator::createCommandBuffer()
@@ -56,7 +56,7 @@ vk::raii::CommandBuffer MeshAllocator::createCommandBuffer()
       .commandBufferCount = 1,
   };
 
-  return std::move(vk::raii::CommandBuffers(vkContext.getDevice(), allocInfo).front());
+  return std::move(vk::raii::CommandBuffers(gpuContext.getDevice(), allocInfo).front());
 }
 
 void MeshAllocator::stage(const void *srcData, uint32_t srcSize, vk::raii::Buffer &dstBuffer, uint32_t dstOffset)
@@ -96,16 +96,16 @@ void MeshAllocator::flush()
   };
 
   {
-    std::lock_guard lock(vkContext.getTransferQueueMutex());
-    vkContext.getTransferQueue().submit(submitInfo, *fence);
+    std::lock_guard lock(gpuContext.getTransferQueueMutex());
+    gpuContext.getTransferQueue().submit(submitInfo, *fence);
   }
   inFlight = true;
 
-  if (vkContext.getDevice().waitForFences(*fence, vk::True, UINT64_MAX) != vk::Result::eSuccess)
+  if (gpuContext.getDevice().waitForFences(*fence, vk::True, UINT64_MAX) != vk::Result::eSuccess)
     throw std::runtime_error("Chunk upload fence wait failed");
 
   inFlight = false;
-  vkContext.getDevice().resetFences(*fence);
+  gpuContext.getDevice().resetFences(*fence);
   stagingOffset = 0;
 }
 

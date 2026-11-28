@@ -1,12 +1,12 @@
-#ifndef VK_SYNCHRONIZATION_HPP
-#define VK_SYNCHRONIZATION_HPP
+#ifndef GPU_SYNCHRONIZATION_HPP
+#define GPU_SYNCHRONIZATION_HPP
 
-#include <renderer/vk/vk_context.hpp>
+#include <renderer/gpu/gpu_context.hpp>
 
-class VkSynchronization
+class GpuSynchronization
 {
 private:
-  VkContext &vkContext;
+  GpuContext &gpuContext;
   vk::raii::Fence drawFence;
   vk::raii::Semaphore presentCompleteSemaphore;
 
@@ -14,7 +14,7 @@ private:
   vk::raii::Semaphore createSemaphore();
 
 public:
-  VkSynchronization(VkContext &context);
+  GpuSynchronization(GpuContext &context);
 
   void waitDrawFence();
   void resetDrawFence();
@@ -23,4 +23,4 @@ public:
   vk::raii::Semaphore &getPresentCompleteSemaphore() { return presentCompleteSemaphore; }
 };
 
-#endif // VK_SYNCHRONIZATION_HPP
+#endif // GPU_SYNCHRONIZATION_HPP

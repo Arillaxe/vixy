@@ -22,39 +22,17 @@ namespace
       {0, 0, 1},
       {0, 0, -1},
   }};
-
-  bool neighborsResolved(World &world, const glm::ivec3 &pos)
-  {
-    for (const auto &offset : NEIGHBOR_OFFSETS)
-    {
-      const int ny = pos.y + offset.y;
-
-      // if (ny < MIN_CHUNK_Y || ny > MAX_CHUNK_Y)
-      //   continue;
-
-      if (!world.isChunkResolved(pos.x + offset.x, ny, pos.z + offset.z))
-        return false;
-    }
-
-    return true;
-  }
-
-  void dirtyChunkMesh(Chunk *chunk)
-  {
-    if (chunk)
-      chunk->isMeshed = false;
-  }
 } // namespace
 
-ChunkSystem::ChunkSystem(VkResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<ChunkMeshMessage> &mQueue, ThreadQueue<MeshAllocation> &fQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> b)
-    : vkResource(resource),
+ChunkSystem::ChunkSystem(GpuResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<ChunkMeshMessage> &mQueue, ThreadQueue<MeshAllocation> &fQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> b)
+    : gpuResource(resource),
       world(w),
       chunkMeshGenerator(w),
       meshQueue(mQueue),
       freeQueue(fQueue),
       viewerPosition(initialViewerPosition),
       buffers(b),
-      meshAllocator(vkResource, buffers.first, buffers.second) {}
+      meshAllocator(gpuResource, buffers.first, buffers.second) {}
 
 void ChunkSystem::run()
 {
@@ -276,8 +254,6 @@ std::unordered_set<glm::ivec2> ChunkSystem::getChunksAround(glm::vec3 &position)
 
 void ChunkSystem::update()
 {
-  // static int avgVerticesPerChunk = 0;
-
   processFrees();
 
   glm::vec3 cameraPosition = getViewerPosition();
@@ -329,13 +305,7 @@ void ChunkSystem::update()
     {
       if (!chunk->isMeshed || dirtyChunks.contains(coord))
       {
-        // if (!neighborsResolved(world, chunk->pos))
-        //   continue;
-
         remeshChunk(*chunk);
-
-        // avgVerticesPerChunk += mesh.vertices.size();
-        // avgVerticesPerChunk /= 2;
       }
     }
 
@@ -364,8 +334,6 @@ void ChunkSystem::update()
   loadedChunks = desiredChunks;
 
   flushUploads();
-
-  // std::cout << avgVerticesPerChunk << std::endl;
 }
 
 void ChunkSystem::remeshChunk(Chunk &chunk)

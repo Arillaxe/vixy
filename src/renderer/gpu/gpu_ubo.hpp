@@ -1,17 +1,17 @@
-#ifndef VK_UBO_HPP
-#define VK_UBO_HPP
+#ifndef GPU_UBO_HPP
+#define GPU_UBO_HPP
 
-#include <renderer/vk/vk_context.hpp>
-#include <renderer/vk/vk_resource.hpp>
-#include <renderer/vk/vk_swapchain.hpp>
+#include <renderer/gpu/gpu_context.hpp>
+#include <renderer/gpu/gpu_resource.hpp>
+#include <renderer/gpu/gpu_swapchain.hpp>
 #include <core/camera.hpp>
 
-class VkUbo
+class GpuUbo
 {
 private:
-  VkContext &vkContext;
-  VkResource &vkResource;
-  VkSwapchain &vkSwapchain;
+  GpuContext &gpuContext;
+  GpuResource &gpuResource;
+  GpuSwapchain &gpuSwapchain;
   vk::DeviceSize frameStride;
   vk::raii::Buffer uniformBuffer;
   vk::raii::DeviceMemory uniformBufferMemory;
@@ -20,7 +20,7 @@ private:
   vk::DeviceSize computeFrameStride();
 
 public:
-  VkUbo(VkContext &context, VkResource &resource, VkSwapchain &swapchain);
+  GpuUbo(GpuContext &context, GpuResource &resource, GpuSwapchain &swapchain);
 
   vk::raii::Buffer &getUniformBuffer() { return uniformBuffer; }
   uint32_t getDynamicOffset(uint32_t frameIndex) const { return static_cast<uint32_t>(frameStride * frameIndex); }
@@ -28,4 +28,4 @@ public:
   void updateUniformBuffer(Camera &camera, uint32_t frameIndex);
 };
 
-#endif // VK_UBO_HPP
+#endif // GPU_UBO_HPP

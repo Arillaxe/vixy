@@ -25,43 +25,43 @@ static_assert(sizeof(vk::DrawIndexedIndirectCommand) == 20);
 
 Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMeshMessage> &mQueue, ThreadQueue<MeshAllocation> &fQueue)
 		: window(win),
-			vkContext(win),
-			vkCommand(vkContext),
-			vkResource(vkContext, vkCommand),
-			vkSwapchain(vkContext, win, vkResource, vkSynchronization),
+			gpuContext(win),
+			gpuCommand(gpuContext),
+			gpuResource(gpuContext, gpuCommand),
+			gpuSwapchain(gpuContext, win, gpuResource, gpuSynchronization),
 			scene(_scene),
-			commandBuffers(vkCommand.createCommandBuffers(MAX_FRAMES_IN_FLIGHT)),
-			mainPipeline(vkContext, vkSwapchain, vkResource),
-			cullPipeline(vkContext, vkResource),
+			commandBuffers(gpuCommand.createCommandBuffers(MAX_FRAMES_IN_FLIGHT)),
+			mainPipeline(gpuContext, gpuSwapchain, gpuResource),
+			cullPipeline(gpuContext, gpuResource),
 			camera(cam),
 			queryPool(
-					vkContext.getDevice(),
+					gpuContext.getDevice(),
 					vk::QueryPoolCreateInfo{}
 							.setQueryType(vk::QueryType::eTimestamp)
 							.setQueryCount(MAX_FRAMES_IN_FLIGHT * 2)),
 			meshQueue(mQueue),
 			freeQueue(fQueue),
-			gui(window, vkContext, vkResource, vkSwapchain),
-			vertexBuffer(vkResource.createBuffer(VERTEX_BUFFER_SIZE, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, true)),
-			vertexBufferMemory(vkResource.getBufferMemory(vertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
-			indexBuffer(vkResource.createBuffer(INDEX_BUFFER_SIZE, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, true)),
-			indexBufferMemory(vkResource.getBufferMemory(indexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
-			indirectBuffer(vkResource.createBuffer(MAX_DRAW_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eStorageBuffer)),
-			indirectBufferMemory(vkResource.getBufferMemory(indirectBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
-			instanceBuffer(vkResource.createBuffer(MAX_INSTANCE_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer)),
-			instanceBufferMemory(vkResource.getBufferMemory(instanceBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
-			drawCountBuffer(vkResource.createBuffer(DRAW_COUNT_SIZE, vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst)),
-			drawCountBufferMemory(vkResource.getBufferMemory(drawCountBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
-			chunkTableBuffer(vkResource.createBuffer(CHUNK_TABLE_SIZE, vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst)),
-			chunkTableBufferMemory(vkResource.getBufferMemory(chunkTableBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
-			chunkStagingBuffer(vkResource.createBuffer(CHUNK_TABLE_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eTransferSrc)),
-			chunkStagingBufferMemory(vkResource.getBufferMemory(chunkStagingBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
-			textureManager(vkResource),
+			gui(window, gpuContext, gpuResource, gpuSwapchain),
+			vertexBuffer(gpuResource.createBuffer(VERTEX_BUFFER_SIZE, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, true)),
+			vertexBufferMemory(gpuResource.getBufferMemory(vertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			indexBuffer(gpuResource.createBuffer(INDEX_BUFFER_SIZE, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, true)),
+			indexBufferMemory(gpuResource.getBufferMemory(indexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			indirectBuffer(gpuResource.createBuffer(MAX_DRAW_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eStorageBuffer)),
+			indirectBufferMemory(gpuResource.getBufferMemory(indirectBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			instanceBuffer(gpuResource.createBuffer(MAX_INSTANCE_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer)),
+			instanceBufferMemory(gpuResource.getBufferMemory(instanceBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			drawCountBuffer(gpuResource.createBuffer(DRAW_COUNT_SIZE, vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst)),
+			drawCountBufferMemory(gpuResource.getBufferMemory(drawCountBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			chunkTableBuffer(gpuResource.createBuffer(CHUNK_TABLE_SIZE, vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst)),
+			chunkTableBufferMemory(gpuResource.getBufferMemory(chunkTableBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			chunkStagingBuffer(gpuResource.createBuffer(CHUNK_TABLE_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eTransferSrc)),
+			chunkStagingBufferMemory(gpuResource.getBufferMemory(chunkStagingBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
+			textureManager(gpuResource),
 			sampler(createSampler())
 {
 	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 	{
-		vkSynchronization.emplace_back(vkContext);
+		gpuSynchronization.emplace_back(gpuContext);
 	}
 
 	chunkStaging = static_cast<ChunkCullData *>(chunkStagingBufferMemory.mapMemory(0, CHUNK_TABLE_SIZE * MAX_FRAMES_IN_FLIGHT));
@@ -95,7 +95,7 @@ uint32_t Renderer::loadTexture(const std::string &filename)
 			.pImageInfo = &descriptorInfo,
 	};
 
-	vkContext.getDevice().updateDescriptorSets(write, {});
+	gpuContext.getDevice().updateDescriptorSets(write, {});
 
 	return texture.id;
 }
@@ -128,34 +128,34 @@ vk::raii::Sampler Renderer::createSampler()
 	};
 
 	return vk::raii::Sampler{
-			vkContext.getDevice(),
+			gpuContext.getDevice(),
 			samplerInfo,
 	};
 }
 
-void Renderer::transition_image_layout(
+void Renderer::transitionImageLayout(
 		vk::raii::CommandBuffer &commandBuffer,
 		vk::Image image,
-		vk::ImageLayout old_layout,
-		vk::ImageLayout new_layout,
-		vk::AccessFlags2 src_access_mask,
-		vk::AccessFlags2 dst_access_mask,
-		vk::PipelineStageFlags2 src_stage_mask,
-		vk::PipelineStageFlags2 dst_stage_mask,
-		vk::ImageAspectFlags image_aspect_flags)
+		vk::ImageLayout oldLayout,
+		vk::ImageLayout newLayout,
+		vk::AccessFlags2 srcAccessMask,
+		vk::AccessFlags2 dstAccessMask,
+		vk::PipelineStageFlags2 srcStageMask,
+		vk::PipelineStageFlags2 dstStageMask,
+		vk::ImageAspectFlags imageAspectFlags)
 {
 	vk::ImageMemoryBarrier2 barrier = {
-			.srcStageMask = src_stage_mask,
-			.srcAccessMask = src_access_mask,
-			.dstStageMask = dst_stage_mask,
-			.dstAccessMask = dst_access_mask,
-			.oldLayout = old_layout,
-			.newLayout = new_layout,
+			.srcStageMask = srcStageMask,
+			.srcAccessMask = srcAccessMask,
+			.dstStageMask = dstStageMask,
+			.dstAccessMask = dstAccessMask,
+			.oldLayout = oldLayout,
+			.newLayout = newLayout,
 			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.image = image,
 			.subresourceRange = {
-					.aspectMask = image_aspect_flags,
+					.aspectMask = imageAspectFlags,
 					.baseMipLevel = 0,
 					.levelCount = 1,
 					.baseArrayLayer = 0,
@@ -163,36 +163,36 @@ void Renderer::transition_image_layout(
 			},
 	};
 
-	vk::DependencyInfo dependency_info = {
+	vk::DependencyInfo dependencyInfo = {
 			.dependencyFlags = {},
 			.imageMemoryBarrierCount = 1,
 			.pImageMemoryBarriers = &barrier,
 	};
 
-	commandBuffer.pipelineBarrier2(dependency_info);
+	commandBuffer.pipelineBarrier2(dependencyInfo);
 }
 
 void Renderer::memoryBarrier(
 		vk::raii::CommandBuffer &commandBuffer,
-		vk::PipelineStageFlags2 src_stage_mask,
-		vk::AccessFlags2 src_access_mask,
-		vk::PipelineStageFlags2 dst_stage_mask,
-		vk::AccessFlags2 dst_access_mask)
+		vk::PipelineStageFlags2 srcStageMask,
+		vk::AccessFlags2 srcAccessMask,
+		vk::PipelineStageFlags2 dstStageMask,
+		vk::AccessFlags2 dstAccessMask)
 {
 	vk::MemoryBarrier2 barrier = {
-			.srcStageMask = src_stage_mask,
-			.srcAccessMask = src_access_mask,
-			.dstStageMask = dst_stage_mask,
-			.dstAccessMask = dst_access_mask,
+			.srcStageMask = srcStageMask,
+			.srcAccessMask = srcAccessMask,
+			.dstStageMask = dstStageMask,
+			.dstAccessMask = dstAccessMask,
 	};
 
-	vk::DependencyInfo dependency_info = {
+	vk::DependencyInfo dependencyInfo = {
 			.dependencyFlags = {},
 			.memoryBarrierCount = 1,
 			.pMemoryBarriers = &barrier,
 	};
 
-	commandBuffer.pipelineBarrier2(dependency_info);
+	commandBuffer.pipelineBarrier2(dependencyInfo);
 }
 
 void Renderer::applyMeshMessages()
@@ -301,7 +301,7 @@ void Renderer::recordCulling(vk::raii::CommandBuffer &commandBuffer)
 			vk::PipelineStageFlagBits2::eComputeShader,
 			vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderStorageWrite);
 
-	float aspectRatio = static_cast<float>(vkSwapchain.getExtent().width) / static_cast<float>(vkSwapchain.getExtent().height);
+	float aspectRatio = static_cast<float>(gpuSwapchain.getExtent().width) / static_cast<float>(gpuSwapchain.getExtent().height);
 	FrustumCuller culler(camera, aspectRatio);
 
 	CullPushConstants pushConstants{
@@ -332,7 +332,7 @@ void Renderer::render()
 	static bool first[MAX_FRAMES_IN_FLIGHT] = {true, true};
 	auto start = std::chrono::high_resolution_clock::now();
 
-	vkSynchronization[frameIndex].waitDrawFence();
+	gpuSynchronization[frameIndex].waitDrawFence();
 
 	for (auto &allocation : pendingFrees[frameIndex])
 		freeQueue.push(std::move(allocation));
@@ -343,15 +343,15 @@ void Renderer::render()
 
 	if (!first[frameIndex])
 	{
-		auto queryPoolResult = (*vkContext.getDevice()).getQueryPoolResults(*queryPool, frameIndex * 2, 2, sizeof(timestamps), timestamps.data(), sizeof(uint64_t), vk::QueryResultFlagBits::e64);
+		auto queryPoolResult = (*gpuContext.getDevice()).getQueryPoolResults(*queryPool, frameIndex * 2, 2, sizeof(timestamps), timestamps.data(), sizeof(uint64_t), vk::QueryResultFlagBits::e64);
 
 		gpuMs =
 				(timestamps[1] - timestamps[0]) *
-				vkContext.getPhysicalDevice().getProperties().limits.timestampPeriod /
+				gpuContext.getPhysicalDevice().getProperties().limits.timestampPeriod /
 				1'000'000.0;
 	}
 
-	uint32_t imageIndex = vkSwapchain.acquireNextImage(frameIndex);
+	uint32_t imageIndex = gpuSwapchain.acquireNextImage(frameIndex);
 	auto &commandBuffer = commandBuffers[frameIndex];
 
 	commandBuffer.reset();
@@ -366,9 +366,9 @@ void Renderer::render()
 	applyMeshMessages();
 	recordCulling(commandBuffer);
 
-	transition_image_layout(
+	transitionImageLayout(
 			commandBuffer,
-			vkSwapchain.getImages()[imageIndex],
+			gpuSwapchain.getImages()[imageIndex],
 			vk::ImageLayout::eUndefined,
 			vk::ImageLayout::eColorAttachmentOptimal,
 			{},
@@ -377,9 +377,9 @@ void Renderer::render()
 			vk::PipelineStageFlagBits2::eColorAttachmentOutput,
 			vk::ImageAspectFlagBits::eColor);
 
-	transition_image_layout(
+	transitionImageLayout(
 			commandBuffer,
-			*vkSwapchain.getColorImage(),
+			*gpuSwapchain.getColorImage(),
 			vk::ImageLayout::eUndefined,
 			vk::ImageLayout::eColorAttachmentOptimal,
 			vk::AccessFlagBits2::eColorAttachmentWrite,
@@ -388,9 +388,9 @@ void Renderer::render()
 			vk::PipelineStageFlagBits2::eColorAttachmentOutput,
 			vk::ImageAspectFlagBits::eColor);
 
-	transition_image_layout(
+	transitionImageLayout(
 			commandBuffer,
-			*vkSwapchain.getDepthImage(),
+			*gpuSwapchain.getDepthImage(),
 			vk::ImageLayout::eUndefined,
 			vk::ImageLayout::eDepthAttachmentOptimal,
 			vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
@@ -403,10 +403,10 @@ void Renderer::render()
 	vk::ClearValue clearDepth = vk::ClearDepthStencilValue(0.0f, 0);
 
 	vk::RenderingAttachmentInfo attachmentInfo = {
-			.imageView = vkSwapchain.getColorImageView(),
+			.imageView = gpuSwapchain.getColorImageView(),
 			.imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
 			.resolveMode = vk::ResolveModeFlagBits::eAverage,
-			.resolveImageView = vkSwapchain.getImageViews()[imageIndex],
+			.resolveImageView = gpuSwapchain.getImageViews()[imageIndex],
 			.resolveImageLayout = vk::ImageLayout::eColorAttachmentOptimal,
 			.loadOp = vk::AttachmentLoadOp::eClear,
 			.storeOp = vk::AttachmentStoreOp::eStore,
@@ -414,7 +414,7 @@ void Renderer::render()
 	};
 
 	vk::RenderingAttachmentInfo depthAttachmentInfo = {
-			.imageView = vkSwapchain.getDepthImageView(),
+			.imageView = gpuSwapchain.getDepthImageView(),
 			.imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
 			.loadOp = vk::AttachmentLoadOp::eClear,
 			.storeOp = vk::AttachmentStoreOp::eDontCare,
@@ -422,7 +422,7 @@ void Renderer::render()
 	};
 
 	vk::RenderingInfo renderingInfo = {
-			.renderArea = {.offset = {0, 0}, .extent = vkSwapchain.getExtent()},
+			.renderArea = {.offset = {0, 0}, .extent = gpuSwapchain.getExtent()},
 			.layerCount = 1,
 			.colorAttachmentCount = 1,
 			.pColorAttachments = &attachmentInfo,
@@ -434,19 +434,19 @@ void Renderer::render()
 	vk::Viewport viewport{
 			0.0f,
 			0.0f,
-			static_cast<float>(vkSwapchain.getExtent().width),
-			static_cast<float>(vkSwapchain.getExtent().height),
+			static_cast<float>(gpuSwapchain.getExtent().width),
+			static_cast<float>(gpuSwapchain.getExtent().height),
 			0.0f,
 			1.0f,
 	};
-	vk::Rect2D scissor{vk::Offset2D{0, 0}, vkSwapchain.getExtent()};
+	vk::Rect2D scissor{vk::Offset2D{0, 0}, gpuSwapchain.getExtent()};
 
 	commandBuffer.setViewport(0, viewport);
 	commandBuffer.setScissor(0, scissor);
 	commandBuffer.setPrimitiveTopology(vk::PrimitiveTopology::eTriangleList);
 
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mainPipeline.getEntityPipeline());
-	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mainPipeline.getPipelineLayout(), 0, *mainPipeline.getDescriptorSet(), mainPipeline.getVkUbo().getDynamicOffset(frameIndex));
+	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mainPipeline.getPipelineLayout(), 0, *mainPipeline.getDescriptorSet(), mainPipeline.getGpuUbo().getDynamicOffset(frameIndex));
 
 	for (auto &entity : entities)
 	{
@@ -494,10 +494,10 @@ void Renderer::render()
 
 	gui.beginFrame();
 
-	// drawGUI();
+	drawGUI();
 
 	{
-		std::lock_guard lock(vkContext.getQueueMutex());
+		std::lock_guard lock(gpuContext.getQueueMutex());
 		gui.endFrame(commandBuffer);
 	}
 
@@ -505,9 +505,9 @@ void Renderer::render()
 
 	commandBuffer.endRendering();
 
-	transition_image_layout(
+	transitionImageLayout(
 			commandBuffer,
-			vkSwapchain.getImages()[imageIndex],
+			gpuSwapchain.getImages()[imageIndex],
 			vk::ImageLayout::eColorAttachmentOptimal,
 			vk::ImageLayout::ePresentSrcKHR,
 			vk::AccessFlagBits2::eColorAttachmentWrite,
@@ -520,47 +520,46 @@ void Renderer::render()
 
 	commandBuffer.end();
 
-	// vkContext.getDevice().waitIdle();
 
-	mainPipeline.getVkUbo().updateUniformBuffer(camera, frameIndex);
+	mainPipeline.getGpuUbo().updateUniformBuffer(camera, frameIndex);
 
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 	const vk::SubmitInfo submitInfo{
 			.waitSemaphoreCount = 1,
-			.pWaitSemaphores = &*vkSynchronization[frameIndex].getPresentCompleteSemaphore(),
+			.pWaitSemaphores = &*gpuSynchronization[frameIndex].getPresentCompleteSemaphore(),
 			.pWaitDstStageMask = &waitDestinationStageMask,
 			.commandBufferCount = 1,
 			.pCommandBuffers = &*commandBuffer,
 			.signalSemaphoreCount = 1,
-			.pSignalSemaphores = &*vkSwapchain.getRenderFinishedSemaphore(imageIndex),
+			.pSignalSemaphores = &*gpuSwapchain.getRenderFinishedSemaphore(imageIndex),
 	};
 
 	const vk::PresentInfoKHR presentInfoKHR{
 			.waitSemaphoreCount = 1,
-			.pWaitSemaphores = &*vkSwapchain.getRenderFinishedSemaphore(imageIndex),
+			.pWaitSemaphores = &*gpuSwapchain.getRenderFinishedSemaphore(imageIndex),
 			.swapchainCount = 1,
-			.pSwapchains = &*vkSwapchain.getSwapchain(),
+			.pSwapchains = &*gpuSwapchain.getSwapchain(),
 			.pImageIndices = &imageIndex,
 	};
 
 	vk::Result result;
 	{
-		vkSynchronization[frameIndex].resetDrawFence();
-		std::lock_guard lock(vkContext.getQueueMutex());
-		vkContext.getQueue().submit(submitInfo, *vkSynchronization[frameIndex].getDrawFence());
+		gpuSynchronization[frameIndex].resetDrawFence();
+		std::lock_guard lock(gpuContext.getQueueMutex());
+		gpuContext.getQueue().submit(submitInfo, *gpuSynchronization[frameIndex].getDrawFence());
 
 		auto &frees = pendingFrees[frameIndex];
 		frees.insert(frees.end(), std::make_move_iterator(unsubmittedFrees.begin()), std::make_move_iterator(unsubmittedFrees.end()));
 		unsubmittedFrees.clear();
 
-		result = vkContext.getQueue().presentKHR(presentInfoKHR);
+		result = gpuContext.getQueue().presentKHR(presentInfoKHR);
 	}
 
 	if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR || window.framebufferResized)
 	{
 		window.framebufferResized = false;
 
-		vkSwapchain.recreateSwapchain();
+		gpuSwapchain.recreateSwapchain();
 	}
 	else
 	{
@@ -577,14 +576,16 @@ void Renderer::render()
 
 void Renderer::waitIdle()
 {
-	vkContext.waitIdle();
+	gpuContext.waitIdle();
 }
 
 void Renderer::drawGUI()
 {
+	ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoInputs);
 	ImGui::Text("CPU frame: %.2fms", cpuMs);
 	ImGui::Text("GPU frame: %.2fms", gpuMs);
-	ImGui::Text("Chunks loaded: %d", chunkMeshesAllocations.size());
-	ImGui::Text("Mesh queue size: %d", meshQueueSize);
-	ImGui::Text("Triangles: %d", totalIndices / 3);
+	ImGui::Text("Chunks loaded: %zu", chunkMeshesAllocations.size());
+	ImGui::Text("Mesh queue size: %u", meshQueueSize);
+	ImGui::Text("Triangles: %u", totalIndices / 3);
+	ImGui::End();
 }

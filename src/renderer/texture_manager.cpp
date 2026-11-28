@@ -1,7 +1,7 @@
 #include <renderer/texture_manager.hpp>
 #include <stb_image.h>
 
-TextureManager::TextureManager(VkResource &resource) : vkResource(resource) {}
+TextureManager::TextureManager(GpuResource &resource) : gpuResource(resource) {}
 
 Texture &TextureManager::loadTexture(const std::string &filename)
 {
@@ -16,7 +16,7 @@ Texture &TextureManager::loadTexture(const std::string &filename)
 
   const size_t size = static_cast<size_t>(width) * static_cast<size_t>(height) * 4;
 
-  vk::raii::Image image = vkResource.createImage(
+  vk::raii::Image image = gpuResource.createImage(
       width,
       height,
       1,
@@ -24,10 +24,10 @@ Texture &TextureManager::loadTexture(const std::string &filename)
       vk::Format::eR8G8B8A8Srgb,
       vk::ImageTiling::eOptimal,
       vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled);
-  vk::raii::DeviceMemory memory = vkResource.getImageMemory(image, vk::MemoryPropertyFlagBits::eDeviceLocal);
+  vk::raii::DeviceMemory memory = gpuResource.getImageMemory(image, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-  vk::raii::Buffer stagingBuffer = vkResource.createBuffer(size, vk::BufferUsageFlagBits::eTransferSrc);
-  vk::raii::DeviceMemory stagingMemory = vkResource.getBufferMemory(
+  vk::raii::Buffer stagingBuffer = gpuResource.createBuffer(size, vk::BufferUsageFlagBits::eTransferSrc);
+  vk::raii::DeviceMemory stagingMemory = gpuResource.getBufferMemory(
       stagingBuffer,
       vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
@@ -37,9 +37,9 @@ Texture &TextureManager::loadTexture(const std::string &filename)
 
   stagingMemory.unmapMemory();
 
-  vkResource.uploadImage(stagingBuffer, image, width, height);
+  gpuResource.uploadImage(stagingBuffer, image, width, height);
 
-  vk::raii::ImageView view = vkResource.createImageView(image, vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor, 1);
+  vk::raii::ImageView view = gpuResource.createImageView(image, vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor, 1);
 
   stbi_image_free(data);
 

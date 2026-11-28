@@ -1,28 +1,28 @@
-#include <renderer/vk/vk_ubo.hpp>
+#include <renderer/gpu/gpu_ubo.hpp>
 
 #include <renderer/ubo.hpp>
 #include <cassert>
 #include <chrono>
 #include <cstring>
 
-VkUbo::VkUbo(VkContext &context, VkResource &resource, VkSwapchain &swapchain)
-    : vkContext(context),
-      vkResource(resource),
-      vkSwapchain(swapchain),
+GpuUbo::GpuUbo(GpuContext &context, GpuResource &resource, GpuSwapchain &swapchain)
+    : gpuContext(context),
+      gpuResource(resource),
+      gpuSwapchain(swapchain),
       frameStride(computeFrameStride()),
-      uniformBuffer(vkResource.createBuffer(frameStride * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eUniformBuffer)),
-      uniformBufferMemory(vkResource.getBufferMemory(uniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
+      uniformBuffer(gpuResource.createBuffer(frameStride * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eUniformBuffer)),
+      uniformBufferMemory(gpuResource.getBufferMemory(uniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
       uniformBufferMapped(uniformBufferMemory.mapMemory(0, frameStride * MAX_FRAMES_IN_FLIGHT)) {}
 
-vk::DeviceSize VkUbo::computeFrameStride()
+vk::DeviceSize GpuUbo::computeFrameStride()
 {
-  vk::DeviceSize alignment = vkContext.getPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment;
+  vk::DeviceSize alignment = gpuContext.getPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment;
   vk::DeviceSize size = sizeof(UniformBufferObject);
 
   return (size + alignment - 1) / alignment * alignment;
 }
 
-void VkUbo::updateUniformBuffer(Camera &camera, uint32_t frameIndex)
+void GpuUbo::updateUniformBuffer(Camera &camera, uint32_t frameIndex)
 {
   assert(frameIndex < MAX_FRAMES_IN_FLIGHT);
 
@@ -38,7 +38,7 @@ void VkUbo::updateUniformBuffer(Camera &camera, uint32_t frameIndex)
   UniformBufferObject ubo{};
 
   ubo.view = camera.viewMatrix();
-  ubo.projection = camera.projectionMatrix(static_cast<float>(vkSwapchain.getExtent().width) / static_cast<float>(vkSwapchain.getExtent().height));
+  ubo.projection = camera.projectionMatrix(static_cast<float>(gpuSwapchain.getExtent().width) / static_cast<float>(gpuSwapchain.getExtent().height));
   ubo.projection[1][1] *= -1;
   ubo.cameraPosition = camera.position;
   ubo.deltaTime = deltaTime * 1000;

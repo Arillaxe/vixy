@@ -1,4 +1,4 @@
-#include <renderer/vk/vk_context.hpp>
+#include <renderer/gpu/gpu_context.hpp>
 
 #include <ranges>
 #include <iostream>
@@ -29,7 +29,7 @@ namespace
   }
 }
 
-VkContext::VkContext(Window &win)
+GpuContext::GpuContext(Window &win)
     : window(win),
       instance(createInstance()),
       debugMessenger(createDebugMessenger()),
@@ -43,13 +43,12 @@ VkContext::VkContext(Window &win)
       queue(createQueue()),
       transferQueue(createTransferQueue()) {}
 
-vk::raii::Instance VkContext::createInstance()
+vk::raii::Instance GpuContext::createInstance()
 {
-  std::runtime_error("Yo");
   constexpr vk::ApplicationInfo appInfo{
-      .pApplicationName = "Hello Triangle",
+      .pApplicationName = "Vixy",
       .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-      .pEngineName = "No Engine",
+      .pEngineName = "Vixy",
       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
       .apiVersion = vk::ApiVersion14,
   };
@@ -108,7 +107,7 @@ vk::raii::Instance VkContext::createInstance()
   return vk::raii::Instance(context, createInfo);
 }
 
-std::vector<const char *> VkContext::getRequiredInstanceExtensions()
+std::vector<const char *> GpuContext::getRequiredInstanceExtensions()
 {
   uint32_t glfwExtensionCount = 0;
   auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -122,7 +121,7 @@ std::vector<const char *> VkContext::getRequiredInstanceExtensions()
   return extensions;
 }
 
-vk::raii::DebugUtilsMessengerEXT VkContext::createDebugMessenger()
+vk::raii::DebugUtilsMessengerEXT GpuContext::createDebugMessenger()
 {
   if (!enableValidationLayers)
     return nullptr;
@@ -140,7 +139,7 @@ vk::raii::DebugUtilsMessengerEXT VkContext::createDebugMessenger()
   return instance.createDebugUtilsMessengerEXT(debugUtilsMessengerCreateInfoEXT);
 }
 
-VKAPI_ATTR vk::Bool32 VKAPI_CALL VkContext::debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity, vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT *pCallbackData, void *)
+VKAPI_ATTR vk::Bool32 VKAPI_CALL GpuContext::debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity, vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT *pCallbackData, void *)
 {
   if (severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError || severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
   {
@@ -150,7 +149,7 @@ VKAPI_ATTR vk::Bool32 VKAPI_CALL VkContext::debugCallback(vk::DebugUtilsMessageS
   return vk::False;
 }
 
-vk::raii::SurfaceKHR VkContext::createSurface()
+vk::raii::SurfaceKHR GpuContext::createSurface()
 {
   VkSurfaceKHR _surface;
 
@@ -162,7 +161,7 @@ vk::raii::SurfaceKHR VkContext::createSurface()
   return vk::raii::SurfaceKHR(instance, _surface);
 }
 
-vk::raii::PhysicalDevice VkContext::pickPhysicalDevice()
+vk::raii::PhysicalDevice GpuContext::pickPhysicalDevice()
 {
   std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
 
@@ -177,7 +176,7 @@ vk::raii::PhysicalDevice VkContext::pickPhysicalDevice()
   throw std::runtime_error("failed to find a suitable GPU!");
 }
 
-bool VkContext::isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice)
+bool GpuContext::isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice)
 {
   bool supportsVulkan1_3 = physicalDevice.getProperties().apiVersion >= vk::ApiVersion13;
 
@@ -220,7 +219,7 @@ bool VkContext::isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice)
          supportsRequiredFeatures && supportsMultisampling;
 }
 
-uint32_t VkContext::pickQueueFamilyIndex()
+uint32_t GpuContext::pickQueueFamilyIndex()
 {
   std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 
@@ -239,7 +238,7 @@ uint32_t VkContext::pickQueueFamilyIndex()
   throw std::runtime_error("Could not find a queue for graphics and present -> terminating");
 }
 
-uint32_t VkContext::pickTransferQueueFamilyIndex()
+uint32_t GpuContext::pickTransferQueueFamilyIndex()
 {
   std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 
@@ -263,7 +262,7 @@ uint32_t VkContext::pickTransferQueueFamilyIndex()
   return fallbackIndex;
 }
 
-uint32_t VkContext::pickTransferQueueSlot()
+uint32_t GpuContext::pickTransferQueueSlot()
 {
   if (transferQueueIndex != queueIndex)
     return 0;
@@ -271,7 +270,7 @@ uint32_t VkContext::pickTransferQueueSlot()
   return physicalDevice.getQueueFamilyProperties()[queueIndex].queueCount > 1 ? 1 : 0;
 }
 
-vk::raii::Device VkContext::createDevice()
+vk::raii::Device GpuContext::createDevice()
 {
   vk::StructureChain<
       vk::PhysicalDeviceFeatures2,
@@ -316,22 +315,22 @@ vk::raii::Device VkContext::createDevice()
   return vk::raii::Device(physicalDevice, deviceCreateInfo);
 }
 
-vk::raii::Queue VkContext::createQueue()
+vk::raii::Queue GpuContext::createQueue()
 {
   return vk::raii::Queue(device, queueIndex, 0);
 }
 
-vk::raii::Queue VkContext::createTransferQueue()
+vk::raii::Queue GpuContext::createTransferQueue()
 {
   return vk::raii::Queue(device, transferQueueIndex, transferQueueSlot);
 }
 
-std::mutex &VkContext::getTransferQueueMutex()
+std::mutex &GpuContext::getTransferQueueMutex()
 {
   return sharesQueue() ? queueMutex : transferQueueMutex;
 }
 
-void VkContext::waitIdle()
+void GpuContext::waitIdle()
 {
   if (sharesQueue())
   {
