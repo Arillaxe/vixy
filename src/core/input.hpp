@@ -10,6 +10,9 @@ private:
   Window &window;
   Camera &camera;
   bool mouseFree = false;
+  bool toggleKeyWasDown = false;
+  float yaw = 0.0f;
+  float pitch = 0.0f;
 
 public:
   Input(Window &win, Camera &cam);
