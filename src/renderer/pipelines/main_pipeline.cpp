@@ -83,7 +83,7 @@ vk::raii::Pipeline MainPipeline::createPipeline()
   };
 
   vk::PipelineMultisampleStateCreateInfo multisampling{
-      .rasterizationSamples = vk::SampleCountFlagBits::e4,
+      .rasterizationSamples = vkContext.getMsaaSamples(),
       .sampleShadingEnable = vk::True,
       .minSampleShading = 0.2f,
   };

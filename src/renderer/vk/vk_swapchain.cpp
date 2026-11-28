@@ -17,10 +17,10 @@ VkSwapchain::VkSwapchain(VkContext &context, Window &win, VkResource &resource, 
       images(swapchain.getImages()),
       imageViews(createImageViews()),
       renderFinishedSemaphores(createRenderFinishedSemaphores()),
-      depthImage(resource.createImage(extent.width, extent.height, 1, vk::SampleCountFlagBits::e4, findDepthFormat(), vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment)),
+      depthImage(resource.createImage(extent.width, extent.height, 1, vkContext.getMsaaSamples(), findDepthFormat(), vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment)),
       depthImageMemory(resource.getImageMemory(depthImage, vk::MemoryPropertyFlagBits::eDeviceLocal)),
       depthImageView(resource.createImageView(depthImage, findDepthFormat(), vk::ImageAspectFlagBits::eDepth, 1)),
-      colorImage(resource.createImage(extent.width, extent.height, 1, vk::SampleCountFlagBits::e4, surfaceFormat.format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment)),
+      colorImage(resource.createImage(extent.width, extent.height, 1, vkContext.getMsaaSamples(), surfaceFormat.format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment)),
       colorImageMemory(resource.getImageMemory(colorImage, vk::MemoryPropertyFlagBits::eDeviceLocal)),
       colorImageView(resource.createImageView(colorImage, surfaceFormat.format, vk::ImageAspectFlagBits::eColor, 1)) {}
 
@@ -190,10 +190,10 @@ void VkSwapchain::recreateSwapchain()
   renderFinishedSemaphores.clear();
   renderFinishedSemaphores = createRenderFinishedSemaphores();
 
-  depthImage = vkResource.createImage(extent.width, extent.height, 1, vk::SampleCountFlagBits::e4, findDepthFormat(), vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment);
+  depthImage = vkResource.createImage(extent.width, extent.height, 1, vkContext.getMsaaSamples(), findDepthFormat(), vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment);
   depthImageMemory = vkResource.getImageMemory(depthImage, vk::MemoryPropertyFlagBits::eDeviceLocal);
   depthImageView = vkResource.createImageView(depthImage, findDepthFormat(), vk::ImageAspectFlagBits::eDepth, 1);
-  colorImage = vkResource.createImage(extent.width, extent.height, 1, vk::SampleCountFlagBits::e4, surfaceFormat.format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment);
+  colorImage = vkResource.createImage(extent.width, extent.height, 1, vkContext.getMsaaSamples(), surfaceFormat.format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment);
   colorImageMemory = vkResource.getImageMemory(colorImage, vk::MemoryPropertyFlagBits::eDeviceLocal);
   colorImageView = vkResource.createImageView(colorImage, surfaceFormat.format, vk::ImageAspectFlagBits::eColor, 1);
 }

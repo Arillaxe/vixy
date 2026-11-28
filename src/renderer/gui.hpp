@@ -56,7 +56,7 @@ public:
     ImGui_ImplVulkan_PipelineInfo pipelineInfo;
     pipelineInfo.PipelineRenderingCreateInfo = renderingInfo;
     pipelineInfo.RenderPass = nullptr;
-    pipelineInfo.MSAASamples = VK_SAMPLE_COUNT_4_BIT;
+    pipelineInfo.MSAASamples = static_cast<VkSampleCountFlagBits>(vkContext.getMsaaSamples());
 
     ImGui_ImplVulkan_InitInfo init_info{
         .Instance = *vkContext.getInstance(),

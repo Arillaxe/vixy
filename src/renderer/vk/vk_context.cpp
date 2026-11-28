@@ -13,9 +13,20 @@ namespace
 
   const std::vector<const char *> requiredDeviceExtension = {
       vk::KHRSwapchainExtensionName,
-      vk::EXTExtendedDynamicStateExtensionName,
-      vk::EXTExtendedDynamicState3ExtensionName,
   };
+
+  vk::SampleCountFlagBits selectMsaaSamples(vk::raii::PhysicalDevice const &physicalDevice)
+  {
+    vk::PhysicalDeviceLimits limits = physicalDevice.getProperties().limits;
+    vk::SampleCountFlags counts = limits.framebufferColorSampleCounts & limits.framebufferDepthSampleCounts;
+
+    if (counts & vk::SampleCountFlagBits::e4)
+      return vk::SampleCountFlagBits::e4;
+    if (counts & vk::SampleCountFlagBits::e2)
+      return vk::SampleCountFlagBits::e2;
+
+    return vk::SampleCountFlagBits::e1;
+  }
 }
 
 VkContext::VkContext(Window &win)
@@ -24,8 +35,10 @@ VkContext::VkContext(Window &win)
       debugMessenger(createDebugMessenger()),
       surface(createSurface()),
       physicalDevice(pickPhysicalDevice()),
+      msaaSamples(selectMsaaSamples(physicalDevice)),
       queueIndex(pickQueueFamilyIndex()),
       transferQueueIndex(pickTransferQueueFamilyIndex()),
+      transferQueueSlot(pickTransferQueueSlot()),
       device(createDevice()),
       queue(createQueue()),
       transferQueue(createTransferQueue()) {}
@@ -189,24 +202,20 @@ bool VkContext::isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice)
       vk::PhysicalDeviceFeatures2,
       vk::PhysicalDeviceVulkan11Features,
       vk::PhysicalDeviceVulkan12Features,
-      vk::PhysicalDeviceVulkan13Features,
-      vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
+      vk::PhysicalDeviceVulkan13Features>();
   bool supportsRequiredFeatures =
-      features.template get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy &&
       features.template get<vk::PhysicalDeviceFeatures2>().features.sampleRateShading &&
-      features.template get<vk::PhysicalDeviceFeatures2>().features.vertexPipelineStoresAndAtomics &&
-      features.template get<vk::PhysicalDeviceFeatures2>().features.fillModeNonSolid &&
       features.template get<vk::PhysicalDeviceFeatures2>().features.multiDrawIndirect &&
       features.template get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
       features.template get<vk::PhysicalDeviceVulkan12Features>().shaderSampledImageArrayNonUniformIndexing &&
       features.template get<vk::PhysicalDeviceVulkan12Features>().descriptorBindingPartiallyBound &&
-      features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
-      features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
-  auto properties = physicalDevice.template getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceExtendedDynamicState3PropertiesEXT>();
-  bool supportsRequiredProperties = properties.template get<vk::PhysicalDeviceExtendedDynamicState3PropertiesEXT>().dynamicPrimitiveTopologyUnrestricted;
+      features.template get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
+      features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering;
+
+  bool supportsMultisampling = selectMsaaSamples(physicalDevice) != vk::SampleCountFlagBits::e1;
 
   return supportsVulkan1_3 && supportsGraphics && supportsAllRequiredExtensions &&
-         supportsRequiredFeatures && supportsRequiredProperties;
+         supportsRequiredFeatures && supportsMultisampling;
 }
 
 uint32_t VkContext::pickQueueFamilyIndex()
@@ -231,17 +240,32 @@ uint32_t VkContext::pickTransferQueueFamilyIndex()
 {
   std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 
+  constexpr vk::QueueFlags transferCapable = vk::QueueFlagBits::eTransfer | vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute;
+  constexpr vk::QueueFlags generalPurpose = vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute;
+
+  uint32_t fallbackIndex = queueIndex;
   for (uint32_t qfpIndex = 0; qfpIndex < queueFamilyProperties.size(); ++qfpIndex)
   {
-    if (
-        (queueFamilyProperties[qfpIndex].queueFlags & vk::QueueFlagBits::eTransfer) && qfpIndex != queueIndex)
-    {
+    vk::QueueFlags flags = queueFamilyProperties[qfpIndex].queueFlags;
+    if (qfpIndex == queueIndex || !(flags & transferCapable))
+      continue;
+
+    if (!(flags & generalPurpose))
       return qfpIndex;
-      break;
-    }
+
+    if (fallbackIndex == queueIndex)
+      fallbackIndex = qfpIndex;
   }
 
-  throw std::runtime_error("Could not find a queue for transfer -> terminating");
+  return fallbackIndex;
+}
+
+uint32_t VkContext::pickTransferQueueSlot()
+{
+  if (transferQueueIndex != queueIndex)
+    return 0;
+
+  return physicalDevice.getQueueFamilyProperties()[queueIndex].queueCount > 1 ? 1 : 0;
 }
 
 vk::raii::Device VkContext::createDevice()
@@ -250,15 +274,11 @@ vk::raii::Device VkContext::createDevice()
       vk::PhysicalDeviceFeatures2,
       vk::PhysicalDeviceVulkan11Features,
       vk::PhysicalDeviceVulkan12Features,
-      vk::PhysicalDeviceVulkan13Features,
-      vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
+      vk::PhysicalDeviceVulkan13Features>
       featureChain = {
           {.features = {
                .sampleRateShading = true,
                .multiDrawIndirect = true,
-               .fillModeNonSolid = true,
-               .samplerAnisotropy = true,
-               .vertexPipelineStoresAndAtomics = true,
            }},
           {.shaderDrawParameters = true},
           {
@@ -266,15 +286,19 @@ vk::raii::Device VkContext::createDevice()
               .descriptorBindingPartiallyBound = true,
           },
           {.synchronization2 = true, .dynamicRendering = true},
-          {.extendedDynamicState = true},
       };
 
-  float graphicsPriority = 0.5f;
-  float transferPriority = 0.4f;
-  std::array<vk::DeviceQueueCreateInfo, 2> queueInfos{{
-      {.queueFamilyIndex = queueIndex, .queueCount = 1, .pQueuePriorities = &graphicsPriority},
-      {.queueFamilyIndex = transferQueueIndex, .queueCount = 1, .pQueuePriorities = &transferPriority},
-  }};
+  std::array<float, 2> priorities{0.5f, 0.4f};
+  std::vector<vk::DeviceQueueCreateInfo> queueInfos;
+  if (transferQueueIndex != queueIndex)
+  {
+    queueInfos.push_back({.queueFamilyIndex = queueIndex, .queueCount = 1, .pQueuePriorities = &priorities[0]});
+    queueInfos.push_back({.queueFamilyIndex = transferQueueIndex, .queueCount = 1, .pQueuePriorities = &priorities[1]});
+  }
+  else
+  {
+    queueInfos.push_back({.queueFamilyIndex = queueIndex, .queueCount = transferQueueSlot + 1, .pQueuePriorities = priorities.data()});
+  }
 
   vk::DeviceCreateInfo deviceCreateInfo{
       .pNext = &featureChain.get<vk::PhysicalDeviceFeatures2>(),
@@ -294,11 +318,23 @@ vk::raii::Queue VkContext::createQueue()
 
 vk::raii::Queue VkContext::createTransferQueue()
 {
-  return vk::raii::Queue(device, transferQueueIndex, 0);
+  return vk::raii::Queue(device, transferQueueIndex, transferQueueSlot);
+}
+
+std::mutex &VkContext::getTransferQueueMutex()
+{
+  return sharesQueue() ? queueMutex : transferQueueMutex;
 }
 
 void VkContext::waitIdle()
 {
+  if (sharesQueue())
+  {
+    std::lock_guard lock(queueMutex);
+    device.waitIdle();
+    return;
+  }
+
   std::scoped_lock lock(queueMutex, transferQueueMutex);
   device.waitIdle();
 }

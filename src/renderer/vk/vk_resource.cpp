@@ -82,6 +82,8 @@ vk::raii::Buffer VkResource::createBuffer(vk::DeviceSize size, vk::BufferUsageFl
       vkContext.getTransferQueueFamilyIndex(),
   };
 
+  shared = shared && vkContext.hasSeparateTransferFamily();
+
   vk::BufferCreateInfo bufferInfo{
       .size = size,
       .usage = usage,
