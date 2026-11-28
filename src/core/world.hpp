@@ -7,12 +7,18 @@
 #include <core/chunk.hpp>
 #include <core/chunk_generator.hpp>
 
+struct Column
+{
+  std::vector<int> chunkYs;
+  int minSurfaceChunkY;
+};
+
 class World
 {
 private:
   ChunkGenerator chunkGenerator;
   std::unordered_map<glm::ivec3, Chunk> chunks;
-  std::unordered_map<glm::ivec2, std::vector<int>> columnChunkYs;
+  std::unordered_map<glm::ivec2, Column> columns;
   std::unordered_map<glm::ivec2, std::vector<Chunk>> savedColumns;
 
 public:
@@ -22,10 +28,12 @@ public:
   void loadColumn(int x, int z);
   void unloadColumn(int x, int z);
   bool isChunkResolved(int x, int y, int z) const;
+  bool isImplicitSolid(int x, int y, int z) const;
+  bool isSolid(int x, int y, int z) const;
   std::vector<Chunk *> getColumnChunks(int x, int z);
   Chunk *getChunk(int x, int y, int z);
   Voxel *getVoxel(int x, int y, int z);
-  Chunk *createEmptyChunk(int x, int y, int z);
+  Chunk *ensureChunk(int x, int y, int z);
 };
 
 #endif // WORLD_HPP

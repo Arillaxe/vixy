@@ -42,6 +42,14 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
       }
     }
   }
+  else if (world.isImplicitSolid(chunkPos.x + 1, chunkPos.y, chunkPos.z))
+  {
+    for (int y = 0; y < CHUNK_SIZE; y++)
+    {
+      for (int z = 0; z < CHUNK_SIZE; z++)
+        grids.yz[y + 1][z + 1] |= (1u << (CHUNK_SIZE + 1));
+    }
+  }
 
   if (Chunk *west = world.getChunk(chunkPos.x - 1, chunkPos.y, chunkPos.z))
   {
@@ -52,6 +60,14 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
         if (west->getVoxel(CHUNK_SIZE - 1, y, z).type != BLOCK_AIR)
           grids.yz[y + 1][z + 1] |= (1u << (0));
       }
+    }
+  }
+  else if (world.isImplicitSolid(chunkPos.x - 1, chunkPos.y, chunkPos.z))
+  {
+    for (int y = 0; y < CHUNK_SIZE; y++)
+    {
+      for (int z = 0; z < CHUNK_SIZE; z++)
+        grids.yz[y + 1][z + 1] |= (1u << (0));
     }
   }
 
@@ -66,6 +82,14 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
       }
     }
   }
+  else if (world.isImplicitSolid(chunkPos.x, chunkPos.y + 1, chunkPos.z))
+  {
+    for (int x = 0; x < CHUNK_SIZE; x++)
+    {
+      for (int z = 0; z < CHUNK_SIZE; z++)
+        grids.xz[x + 1][z + 1] |= (1u << (CHUNK_SIZE + 1));
+    }
+  }
 
   if (Chunk *top = world.getChunk(chunkPos.x, chunkPos.y - 1, chunkPos.z))
   {
@@ -76,6 +100,14 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
         if (top->getVoxel(x, CHUNK_SIZE - 1, z).type != BLOCK_AIR)
           grids.xz[x + 1][z + 1] |= (1u << (0));
       }
+    }
+  }
+  else if (world.isImplicitSolid(chunkPos.x, chunkPos.y - 1, chunkPos.z))
+  {
+    for (int x = 0; x < CHUNK_SIZE; x++)
+    {
+      for (int z = 0; z < CHUNK_SIZE; z++)
+        grids.xz[x + 1][z + 1] |= (1u << (0));
     }
   }
 
@@ -90,6 +122,14 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
       }
     }
   }
+  else if (world.isImplicitSolid(chunkPos.x, chunkPos.y, chunkPos.z + 1))
+  {
+    for (int x = 0; x < CHUNK_SIZE; x++)
+    {
+      for (int y = 0; y < CHUNK_SIZE; y++)
+        grids.xy[x + 1][y + 1] |= (1u << (CHUNK_SIZE + 1));
+    }
+  }
 
   if (Chunk *south = world.getChunk(chunkPos.x, chunkPos.y, chunkPos.z - 1))
   {
@@ -100,6 +140,14 @@ BinaryGrids ChunkMeshGenerator::getBinaryGrids(Chunk &chunk, uint32_t material)
         if (south->getVoxel(x, y, CHUNK_SIZE - 1).type != BLOCK_AIR)
           grids.xy[x + 1][y + 1] |= (1u << (0));
       }
+    }
+  }
+  else if (world.isImplicitSolid(chunkPos.x, chunkPos.y, chunkPos.z - 1))
+  {
+    for (int x = 0; x < CHUNK_SIZE; x++)
+    {
+      for (int y = 0; y < CHUNK_SIZE; y++)
+        grids.xy[x + 1][y + 1] |= (1u << (0));
     }
   }
 

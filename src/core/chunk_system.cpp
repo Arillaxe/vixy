@@ -189,6 +189,9 @@ void ChunkSystem::applyEdit(const BlockEdit &edit)
     return;
 
   const bool isBreak = edit.action == BlockEdit::Action::Break;
+
+  if (!isBreak && hit.voxel == hit.previousVoxel)
+    return;
   const glm::ivec3 voxelPos = isBreak ? hit.voxel : hit.previousVoxel;
 
   const glm::ivec3 chunkPos{
@@ -197,16 +200,36 @@ void ChunkSystem::applyEdit(const BlockEdit &edit)
       floorDiv(voxelPos.z, CHUNK_SIZE),
   };
 
-  if (!isBreak)
-    world.createEmptyChunk(chunkPos.x, chunkPos.y, chunkPos.z);
+  Chunk *chunk = world.ensureChunk(chunkPos.x, chunkPos.y, chunkPos.z);
 
-  Voxel *voxel = world.getVoxel(voxelPos.x, voxelPos.y, voxelPos.z);
-
-  if (!voxel)
+  if (!chunk)
     return;
 
-  voxel->type = isBreak ? BLOCK_AIR : BLOCK_GRASS;
-  world.getChunk(chunkPos.x, chunkPos.y, chunkPos.z)->isEdited = true;
+  const glm::ivec3 localPos{
+      floorMod(voxelPos.x, CHUNK_SIZE),
+      floorMod(voxelPos.y, CHUNK_SIZE),
+      floorMod(voxelPos.z, CHUNK_SIZE),
+  };
+
+  chunk->getVoxel(localPos.x, localPos.y, localPos.z).type = isBreak ? BLOCK_AIR : BLOCK_GRASS;
+  chunk->isEdited = true;
+
+  if (isBreak)
+  {
+    for (const auto &offset : NEIGHBOR_OFFSETS)
+    {
+      const glm::ivec3 neighborLocal = localPos + offset;
+
+      if (glm::all(glm::greaterThanEqual(neighborLocal, glm::ivec3(0))) &&
+          glm::all(glm::lessThan(neighborLocal, glm::ivec3(CHUNK_SIZE))))
+        continue;
+
+      const glm::ivec3 neighborPos = chunkPos + offset;
+
+      if (world.isImplicitSolid(neighborPos.x, neighborPos.y, neighborPos.z))
+        world.ensureChunk(neighborPos.x, neighborPos.y, neighborPos.z)->isEdited = true;
+    }
+  }
 
   for (const auto &offset : NEIGHBOR_OFFSETS)
   {

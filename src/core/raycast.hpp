@@ -70,16 +70,13 @@ RaycastHit raycast(
 
   while (distance <= maxDistance)
   {
-    if (Voxel *v = world.getVoxel(voxel.x, voxel.y, voxel.z))
+    if (world.isSolid(voxel.x, voxel.y, voxel.z))
     {
-      if (v->type != BLOCK_AIR)
-      {
-        result.hit = true;
-        result.voxel = voxel;
-        result.previousVoxel = previousVoxel;
-        result.distance = distance * VOXEL_SIZE;
-        return result;
-      }
+      result.hit = true;
+      result.voxel = voxel;
+      result.previousVoxel = previousVoxel;
+      result.distance = distance * VOXEL_SIZE;
+      return result;
     }
 
     previousVoxel = voxel;
