@@ -31,7 +31,7 @@ uint32_t VkResource::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags
 
 vk::raii::DescriptorPool VkResource::createDescriptorPool()
 {
-  std::array<vk::DescriptorPoolSize, 4> poolSize{{
+  std::array<vk::DescriptorPoolSize, 5> poolSize{{
       {
           .type = vk::DescriptorType::eUniformBufferDynamic,
           .descriptorCount = 1,
@@ -47,6 +47,10 @@ vk::raii::DescriptorPool VkResource::createDescriptorPool()
       {
           .type = vk::DescriptorType::eCombinedImageSampler,
           .descriptorCount = MAX_TEXTURES,
+      },
+      {
+          .type = vk::DescriptorType::eStorageBuffer,
+          .descriptorCount = 4,
       },
   }};
   vk::DescriptorPoolCreateInfo poolInfo{

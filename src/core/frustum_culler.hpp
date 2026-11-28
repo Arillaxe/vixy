@@ -15,6 +15,7 @@ public:
   FrustumCuller(const Camera &camera, float aspectRatio);
 
   bool isVisible(const glm::ivec3 &chunkPos) const;
+  const Plane (&getPlanes() const)[6] { return planes; }
 
 private:
   Plane planes[6];

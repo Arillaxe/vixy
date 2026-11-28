@@ -14,8 +14,14 @@
 static_assert(BLOCK_TEXTURE_COUNT <= MAX_TEXTURES);
 
 constexpr uint32_t MAX_DRAW_COUNT = 100000;
+constexpr uint32_t MAX_CHUNK_SLOTS = MAX_DRAW_COUNT;
+constexpr uint32_t NO_SLOT = UINT32_MAX;
 constexpr vk::DeviceSize MAX_DRAW_SIZE = sizeof(vk::DrawIndexedIndirectCommand) * MAX_DRAW_COUNT;
 constexpr vk::DeviceSize MAX_INSTANCE_SIZE = sizeof(ChunkInstance) * MAX_DRAW_COUNT;
+constexpr vk::DeviceSize CHUNK_TABLE_SIZE = sizeof(ChunkCullData) * MAX_CHUNK_SLOTS;
+constexpr vk::DeviceSize DRAW_COUNT_SIZE = sizeof(uint32_t) * MAX_FRAMES_IN_FLIGHT;
+
+static_assert(sizeof(vk::DrawIndexedIndirectCommand) == 20);
 
 Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMeshMessage> &mQueue, ThreadQueue<MeshAllocation> &fQueue)
 		: window(win),
@@ -26,6 +32,7 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMes
 			scene(_scene),
 			commandBuffers(vkCommand.createCommandBuffers(MAX_FRAMES_IN_FLIGHT)),
 			mainPipeline(vkContext, vkSwapchain, vkResource),
+			cullPipeline(vkContext, vkResource),
 			camera(cam),
 			queryPool(
 					vkContext.getDevice(),
@@ -39,10 +46,16 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMes
 			vertexBufferMemory(vkResource.getBufferMemory(vertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
 			indexBuffer(vkResource.createBuffer(INDEX_BUFFER_SIZE, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, true)),
 			indexBufferMemory(vkResource.getBufferMemory(indexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
-			indirectBuffer(vkResource.createBuffer(MAX_DRAW_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eIndirectBuffer)),
-			indirectBufferMemory(vkResource.getBufferMemory(indirectBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
-			instanceBuffer(vkResource.createBuffer(MAX_INSTANCE_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eVertexBuffer)),
-			instanceBufferMemory(vkResource.getBufferMemory(instanceBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
+			indirectBuffer(vkResource.createBuffer(MAX_DRAW_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eStorageBuffer)),
+			indirectBufferMemory(vkResource.getBufferMemory(indirectBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			instanceBuffer(vkResource.createBuffer(MAX_INSTANCE_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer)),
+			instanceBufferMemory(vkResource.getBufferMemory(instanceBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			drawCountBuffer(vkResource.createBuffer(DRAW_COUNT_SIZE, vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst)),
+			drawCountBufferMemory(vkResource.getBufferMemory(drawCountBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			chunkTableBuffer(vkResource.createBuffer(CHUNK_TABLE_SIZE, vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst)),
+			chunkTableBufferMemory(vkResource.getBufferMemory(chunkTableBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
+			chunkStagingBuffer(vkResource.createBuffer(CHUNK_TABLE_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eTransferSrc)),
+			chunkStagingBufferMemory(vkResource.getBufferMemory(chunkStagingBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
 			textureManager(vkResource),
 			sampler(createSampler())
 {
@@ -50,6 +63,9 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMes
 	{
 		vkSynchronization.emplace_back(vkContext);
 	}
+
+	chunkStaging = static_cast<ChunkCullData *>(chunkStagingBufferMemory.mapMemory(0, CHUNK_TABLE_SIZE * MAX_FRAMES_IN_FLIGHT));
+	cullPipeline.bindBuffers(*chunkTableBuffer, *indirectBuffer, *instanceBuffer, *drawCountBuffer);
 
 	for (uint32_t slot = 0; slot < BLOCK_TEXTURE_COUNT; slot++)
 	{
@@ -156,6 +172,161 @@ void Renderer::transition_image_layout(
 	commandBuffer.pipelineBarrier2(dependency_info);
 }
 
+void Renderer::memoryBarrier(
+		vk::raii::CommandBuffer &commandBuffer,
+		vk::PipelineStageFlags2 src_stage_mask,
+		vk::AccessFlags2 src_access_mask,
+		vk::PipelineStageFlags2 dst_stage_mask,
+		vk::AccessFlags2 dst_access_mask)
+{
+	vk::MemoryBarrier2 barrier = {
+			.srcStageMask = src_stage_mask,
+			.srcAccessMask = src_access_mask,
+			.dstStageMask = dst_stage_mask,
+			.dstAccessMask = dst_access_mask,
+	};
+
+	vk::DependencyInfo dependency_info = {
+			.dependencyFlags = {},
+			.memoryBarrierCount = 1,
+			.pMemoryBarriers = &barrier,
+	};
+
+	commandBuffer.pipelineBarrier2(dependency_info);
+}
+
+void Renderer::applyMeshMessages()
+{
+	meshQueueSize = meshQueue.getSize();
+
+	ChunkMeshMessage message;
+
+	while (meshQueue.tryPop(message))
+	{
+		glm::ivec3 pos = std::holds_alternative<ChunkMeshLoad>(message)
+												 ? std::get<ChunkMeshLoad>(message).allocation.pos
+												 : std::get<ChunkMeshUnload>(message).pos;
+
+		auto it = chunkMeshesAllocations.find(pos);
+
+		if (it != chunkMeshesAllocations.end())
+		{
+			uint32_t slot = it->second.slot;
+
+			if (slot != NO_SLOT)
+			{
+				dirtySlots[slot] = ChunkCullData{};
+				freeSlots.push_back(slot);
+			}
+
+			totalIndices -= it->second.allocation.indexCount;
+			unsubmittedFrees.push_back(it->second.allocation);
+			chunkMeshesAllocations.erase(it);
+		}
+
+		auto *load = std::get_if<ChunkMeshLoad>(&message);
+
+		if (!load)
+			continue;
+
+		const MeshAllocation &allocation = load->allocation;
+		uint32_t slot = NO_SLOT;
+
+		if (!freeSlots.empty())
+		{
+			slot = freeSlots.back();
+			freeSlots.pop_back();
+		}
+		else if (slotCount < MAX_CHUNK_SLOTS)
+		{
+			slot = slotCount++;
+		}
+
+		if (slot != NO_SLOT)
+		{
+			assert(allocation.vertexOffset % sizeof(ChunkVertex) == 0);
+			assert(allocation.indexOffset % sizeof(uint32_t) == 0);
+
+			dirtySlots[slot] = ChunkCullData{
+					.originScale = glm::vec4(glm::vec3(pos * CHUNK_SIZE * VOXEL_SIZE), static_cast<float>(VOXEL_SIZE)),
+					.indexCount = allocation.indexCount,
+					.firstIndex = static_cast<uint32_t>(allocation.indexOffset / sizeof(uint32_t)),
+					.vertexOffset = static_cast<int32_t>(allocation.vertexOffset / sizeof(ChunkVertex)),
+					.pad = 0,
+			};
+		}
+
+		totalIndices += allocation.indexCount;
+		chunkMeshesAllocations.emplace(pos, ChunkDrawEntry{.allocation = allocation, .slot = slot});
+	}
+}
+
+void Renderer::recordCulling(vk::raii::CommandBuffer &commandBuffer)
+{
+	memoryBarrier(
+			commandBuffer,
+			vk::PipelineStageFlagBits2::eComputeShader | vk::PipelineStageFlagBits2::eDrawIndirect | vk::PipelineStageFlagBits2::eTransfer,
+			vk::AccessFlagBits2::eShaderStorageWrite | vk::AccessFlagBits2::eTransferWrite,
+			vk::PipelineStageFlagBits2::eTransfer,
+			vk::AccessFlagBits2::eTransferWrite);
+
+	if (!dirtySlots.empty())
+	{
+		uint32_t stagingBase = MAX_CHUNK_SLOTS * frameIndex;
+		std::vector<vk::BufferCopy> regions;
+		regions.reserve(dirtySlots.size());
+
+		for (auto &[slot, data] : dirtySlots)
+		{
+			uint32_t stagingIndex = stagingBase + static_cast<uint32_t>(regions.size());
+			chunkStaging[stagingIndex] = data;
+
+			regions.push_back(vk::BufferCopy{
+					.srcOffset = sizeof(ChunkCullData) * stagingIndex,
+					.dstOffset = sizeof(ChunkCullData) * slot,
+					.size = sizeof(ChunkCullData),
+			});
+		}
+
+		commandBuffer.copyBuffer(*chunkStagingBuffer, *chunkTableBuffer, regions);
+		dirtySlots.clear();
+	}
+
+	commandBuffer.fillBuffer(*drawCountBuffer, sizeof(uint32_t) * frameIndex, sizeof(uint32_t), 0);
+
+	memoryBarrier(
+			commandBuffer,
+			vk::PipelineStageFlagBits2::eTransfer,
+			vk::AccessFlagBits2::eTransferWrite,
+			vk::PipelineStageFlagBits2::eComputeShader,
+			vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderStorageWrite);
+
+	float aspectRatio = static_cast<float>(vkSwapchain.getExtent().width) / static_cast<float>(vkSwapchain.getExtent().height);
+	FrustumCuller culler(camera, aspectRatio);
+
+	CullPushConstants pushConstants{
+			.slotCount = slotCount,
+			.outputBase = MAX_DRAW_COUNT * frameIndex,
+			.countIndex = frameIndex,
+			.maxDraws = MAX_DRAW_COUNT,
+			.chunkExtent = static_cast<float>(CHUNK_SIZE * VOXEL_SIZE),
+	};
+
+	const auto &planes = culler.getPlanes();
+
+	for (uint32_t i = 0; i < 6; i++)
+		pushConstants.planes[i] = glm::vec4(planes[i].normal, planes[i].d);
+
+	cullPipeline.dispatch(commandBuffer, pushConstants);
+
+	memoryBarrier(
+			commandBuffer,
+			vk::PipelineStageFlagBits2::eComputeShader,
+			vk::AccessFlagBits2::eShaderStorageWrite,
+			vk::PipelineStageFlagBits2::eDrawIndirect | vk::PipelineStageFlagBits2::eVertexAttributeInput,
+			vk::AccessFlagBits2::eIndirectCommandRead | vk::AccessFlagBits2::eVertexAttributeRead);
+}
+
 void Renderer::render()
 {
 	static bool first[MAX_FRAMES_IN_FLIGHT] = {true, true};
@@ -191,6 +362,9 @@ void Renderer::render()
 
 	commandBuffer.resetQueryPool(*queryPool, frameIndex * 2, 2);
 	commandBuffer.writeTimestamp(vk::PipelineStageFlagBits::eTopOfPipe, *queryPool, frameIndex * 2);
+
+	applyMeshMessages();
+	recordCulling(commandBuffer);
 
 	transition_image_layout(
 			commandBuffer,
@@ -303,82 +477,18 @@ void Renderer::render()
 		commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 	}
 
-	meshQueueSize = meshQueue.getSize();
-
-	// Apply loads and unloads in the order the chunk thread sent them.
-	ChunkMeshMessage message;
-
-	while (meshQueue.tryPop(message))
-	{
-		glm::ivec3 pos = std::holds_alternative<ChunkMeshLoad>(message)
-												 ? std::get<ChunkMeshLoad>(message).allocation.pos
-												 : std::get<ChunkMeshUnload>(message).pos;
-
-		auto it = chunkMeshesAllocations.find(pos);
-
-		if (it != chunkMeshesAllocations.end())
-		{
-			unsubmittedFrees.push_back(it->second);
-			chunkMeshesAllocations.erase(it);
-		}
-
-		if (auto *load = std::get_if<ChunkMeshLoad>(&message))
-			chunkMeshesAllocations.emplace(pos, load->allocation);
-	}
-
-	totalIndices = 0;
-
-	float aspectRatio = static_cast<float>(vkSwapchain.getExtent().width) / static_cast<float>(vkSwapchain.getExtent().height);
-	FrustumCuller culler(camera, aspectRatio);
-
-	vk::DeviceSize indirectOffset = MAX_DRAW_SIZE * frameIndex;
-	vk::DeviceSize instanceOffset = MAX_INSTANCE_SIZE * frameIndex;
-
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mainPipeline.getPipeline());
 	std::array<vk::Buffer, 2> chunkVertexBuffers{*vertexBuffer, *instanceBuffer};
-	std::array<vk::DeviceSize, 2> chunkVertexOffsets{0, instanceOffset};
+	std::array<vk::DeviceSize, 2> chunkVertexOffsets{0, 0};
 	commandBuffer.bindVertexBuffers(0, chunkVertexBuffers, chunkVertexOffsets);
 	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexTypeValue<uint32_t>::value);
-	auto indirectCommands = static_cast<vk::DrawIndexedIndirectCommand *>(indirectBufferMemory.mapMemory(indirectOffset, MAX_DRAW_SIZE));
-	auto instances = static_cast<ChunkInstance *>(instanceBufferMemory.mapMemory(instanceOffset, MAX_INSTANCE_SIZE));
-
-	uint32_t commandId = 0;
-
-	for (auto &[pos, meshAllocation] : chunkMeshesAllocations)
-	{
-
-		if (!culler.isVisible(pos))
-			continue;
-
-		if (commandId >= MAX_DRAW_COUNT)
-			break;
-
-		assert(meshAllocation.vertexOffset % sizeof(ChunkVertex) == 0);
-
-		instances[commandId] = ChunkInstance{
-				.origin = glm::vec3(pos * CHUNK_SIZE * VOXEL_SIZE),
-				.scale = static_cast<float>(VOXEL_SIZE),
-		};
-
-		indirectCommands[commandId] = vk::DrawIndexedIndirectCommand{
-				.indexCount = meshAllocation.indexCount,
-				.instanceCount = 1,
-				.firstIndex = static_cast<uint32_t>(
-						meshAllocation.indexOffset / sizeof(uint32_t)),
-				.vertexOffset = static_cast<int32_t>(
-						meshAllocation.vertexOffset / sizeof(ChunkVertex)),
-				.firstInstance = commandId,
-		};
-
-		commandId++;
-
-		totalIndices += meshAllocation.indexCount;
-	}
-
-	instanceBufferMemory.unmapMemory();
-	indirectBufferMemory.unmapMemory();
-
-	commandBuffer.drawIndexedIndirect(*indirectBuffer, indirectOffset, commandId, sizeof(vk::DrawIndexedIndirectCommand));
+	commandBuffer.drawIndexedIndirectCount(
+			*indirectBuffer,
+			MAX_DRAW_SIZE * frameIndex,
+			*drawCountBuffer,
+			sizeof(uint32_t) * frameIndex,
+			MAX_DRAW_COUNT,
+			sizeof(vk::DrawIndexedIndirectCommand));
 
 	// GUI
 
