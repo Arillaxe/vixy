@@ -124,6 +124,21 @@ std::vector<uint32_t> Mesh::calcIndices()
   {
     for (const auto &primitive : mesh.primitives)
     {
+      const tinygltf::Accessor &posAccessor = model.accessors[primitive.attributes.at("POSITION")];
+
+      if (primitive.indices < 0)
+      {
+        indices.reserve(indices.size() + posAccessor.count);
+
+        for (size_t i = 0; i < posAccessor.count; i++)
+        {
+          indices.push_back(vertexOffset + static_cast<uint32_t>(i));
+        }
+
+        vertexOffset += static_cast<uint32_t>(posAccessor.count);
+        continue;
+      }
+
       const tinygltf::Accessor &indexAccessor = model.accessors[primitive.indices];
       const tinygltf::BufferView &indexBufferView = model.bufferViews[indexAccessor.bufferView];
       const tinygltf::Buffer &indexBuffer = model.buffers[indexBufferView.buffer];
@@ -157,7 +172,6 @@ std::vector<uint32_t> Mesh::calcIndices()
         indices.push_back(vertexOffset + index);
       }
 
-      const tinygltf::Accessor &posAccessor = model.accessors[primitive.attributes.at("POSITION")];
       vertexOffset += static_cast<uint32_t>(posAccessor.count);
     }
   }
@@ -167,6 +181,11 @@ std::vector<uint32_t> Mesh::calcIndices()
 
 void Mesh::createVertexBuffer()
 {
+  if (vertices.empty())
+  {
+    return;
+  }
+
   vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
   auto stagingBuffer = vkResource.createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc);
@@ -185,6 +204,11 @@ void Mesh::createVertexBuffer()
 
 void Mesh::createIndexBuffer()
 {
+  if (indices.empty())
+  {
+    return;
+  }
+
   vk::DeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
   auto stagingBuffer = vkResource.createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc);
