@@ -9,6 +9,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 
 tinygltf::Model Mesh::loadModel(const std::string &filename)
@@ -38,67 +39,209 @@ tinygltf::Model Mesh::loadModel(const std::string &filename)
   return model;
 }
 
+namespace
+{
+  float readComponent(const unsigned char *src, int componentType, bool normalized)
+  {
+    switch (componentType)
+    {
+    case TINYGLTF_COMPONENT_TYPE_FLOAT:
+    {
+      float value;
+      std::memcpy(&value, src, sizeof(value));
+      return value;
+    }
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+      if (normalized)
+      {
+        return static_cast<float>(*src) / 255.0f;
+      }
+      break;
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+      if (normalized)
+      {
+        uint16_t value;
+        std::memcpy(&value, src, sizeof(value));
+        return static_cast<float>(value) / 65535.0f;
+      }
+      break;
+    default:
+      break;
+    }
+
+    throw std::runtime_error("Unsupported glTF attribute component type");
+  }
+
+  class AccessorReader
+  {
+  private:
+    const unsigned char *data = nullptr;
+    size_t stride = 0;
+    size_t componentSize = 0;
+    int componentType = 0;
+    bool normalized = false;
+    int numComponents = 0;
+    size_t count = 0;
+
+  public:
+    AccessorReader(const tinygltf::Model &model, int accessorIndex, int expectedType)
+    {
+      if (accessorIndex < 0 || static_cast<size_t>(accessorIndex) >= model.accessors.size())
+      {
+        throw std::runtime_error("Invalid glTF accessor index");
+      }
+
+      const tinygltf::Accessor &accessor = model.accessors[accessorIndex];
+
+      if (accessor.type != expectedType)
+      {
+        throw std::runtime_error("Unexpected glTF accessor type");
+      }
+
+      if (accessor.sparse.isSparse || accessor.bufferView < 0)
+      {
+        throw std::runtime_error("Sparse or bufferless glTF accessors are not supported");
+      }
+
+      if (static_cast<size_t>(accessor.bufferView) >= model.bufferViews.size())
+      {
+        throw std::runtime_error("Invalid glTF buffer view index");
+      }
+
+      const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
+
+      if (bufferView.buffer < 0 || static_cast<size_t>(bufferView.buffer) >= model.buffers.size())
+      {
+        throw std::runtime_error("Invalid glTF buffer index");
+      }
+
+      const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
+
+      int byteStride = accessor.ByteStride(bufferView);
+      int size = tinygltf::GetComponentSizeInBytes(static_cast<uint32_t>(accessor.componentType));
+      int components = tinygltf::GetNumComponentsInType(static_cast<uint32_t>(accessor.type));
+
+      if (byteStride <= 0 || size <= 0 || components <= 0)
+      {
+        throw std::runtime_error("Invalid glTF accessor layout");
+      }
+
+      count = accessor.count;
+      stride = static_cast<size_t>(byteStride);
+      componentSize = static_cast<size_t>(size);
+      componentType = accessor.componentType;
+      normalized = accessor.normalized;
+      numComponents = components;
+
+      size_t elementSize = componentSize * static_cast<size_t>(numComponents);
+
+      if (stride < elementSize)
+      {
+        throw std::runtime_error("glTF accessor stride is smaller than its element");
+      }
+
+      if (bufferView.byteOffset > buffer.data.size() || bufferView.byteLength > buffer.data.size() - bufferView.byteOffset)
+      {
+        throw std::runtime_error("glTF buffer view exceeds its buffer");
+      }
+
+      if (count > 0)
+      {
+        size_t viewLength = bufferView.byteLength;
+
+        if (accessor.byteOffset > viewLength || elementSize > viewLength - accessor.byteOffset ||
+            count - 1 > (viewLength - accessor.byteOffset - elementSize) / stride)
+        {
+          throw std::runtime_error("glTF accessor exceeds its buffer view");
+        }
+
+        data = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
+      }
+    }
+
+    size_t getCount() const { return count; }
+    int getComponentType() const { return componentType; }
+
+    void read(size_t index, float *out) const
+    {
+      const unsigned char *element = data + index * stride;
+
+      for (int c = 0; c < numComponents; c++)
+      {
+        out[c] = readComponent(element + c * componentSize, componentType, normalized);
+      }
+    }
+  };
+
+  const int *findAttribute(const tinygltf::Primitive &primitive, const char *name)
+  {
+    auto it = primitive.attributes.find(name);
+    return it == primitive.attributes.end() ? nullptr : &it->second;
+  }
+}
+
 std::vector<Vertex> Mesh::calcVerticies()
 {
   std::vector<Vertex> vertices;
-
-  vertices.clear();
 
   for (const auto &mesh : model.meshes)
   {
     for (const auto &primitive : mesh.primitives)
     {
-      const tinygltf::Accessor &posAccessor = model.accessors[primitive.attributes.at("POSITION")];
-      const tinygltf::BufferView &posBufferView = model.bufferViews[posAccessor.bufferView];
-      const tinygltf::Buffer &posBuffer = model.buffers[posBufferView.buffer];
+      AccessorReader positions(model, primitive.attributes.at("POSITION"), TINYGLTF_TYPE_VEC3);
 
-      bool hasTexCoords = primitive.attributes.find("TEXCOORD_0") != primitive.attributes.end();
-      const tinygltf::Accessor *texCoordAccessor = nullptr;
-      const tinygltf::BufferView *texCoordBufferView = nullptr;
-      const tinygltf::Buffer *texCoordBuffer = nullptr;
-
-      if (hasTexCoords)
+      if (positions.getComponentType() != TINYGLTF_COMPONENT_TYPE_FLOAT)
       {
-        texCoordAccessor = &model.accessors[primitive.attributes.at("TEXCOORD_0")];
-        texCoordBufferView = &model.bufferViews[texCoordAccessor->bufferView];
-        texCoordBuffer = &model.buffers[texCoordBufferView->buffer];
+        throw std::runtime_error("glTF POSITION must be float");
       }
 
-      bool hasNormals = primitive.attributes.find("NORMAL") != primitive.attributes.end();
-      const tinygltf::Accessor *normalAccessor = nullptr;
-      const tinygltf::BufferView *normalBufferView = nullptr;
-      const tinygltf::Buffer *normalBuffer = nullptr;
+      std::optional<AccessorReader> texCoords;
+      std::optional<AccessorReader> normals;
 
-      if (hasNormals)
+      if (const int *index = findAttribute(primitive, "TEXCOORD_0"))
       {
-        normalAccessor = &model.accessors[primitive.attributes.at("NORMAL")];
-        normalBufferView = &model.bufferViews[normalAccessor->bufferView];
-        normalBuffer = &model.buffers[normalBufferView->buffer];
+        texCoords.emplace(model, *index, TINYGLTF_TYPE_VEC2);
       }
 
-      uint32_t baseVertex = static_cast<uint32_t>(vertices.size());
+      if (const int *index = findAttribute(primitive, "NORMAL"))
+      {
+        normals.emplace(model, *index, TINYGLTF_TYPE_VEC3);
 
-      for (size_t i = 0; i < posAccessor.count; i++)
+        if (normals->getComponentType() != TINYGLTF_COMPONENT_TYPE_FLOAT)
+        {
+          throw std::runtime_error("glTF NORMAL must be float");
+        }
+      }
+
+      if ((texCoords && texCoords->getCount() != positions.getCount()) || (normals && normals->getCount() != positions.getCount()))
+      {
+        throw std::runtime_error("glTF attribute counts do not match");
+      }
+
+      vertices.reserve(vertices.size() + positions.getCount());
+
+      for (size_t i = 0; i < positions.getCount(); i++)
       {
         Vertex vertex{};
+        float values[3];
 
-        const float *pos = reinterpret_cast<const float *>(&posBuffer.data[posBufferView.byteOffset + posAccessor.byteOffset + i * 12]);
-        vertex.position = {pos[0], pos[1], pos[2]};
+        positions.read(i, values);
+        vertex.position = {values[0], values[1], values[2]};
 
-        if (hasTexCoords)
+        if (texCoords)
         {
-          const float *texCoord = reinterpret_cast<const float *>(&texCoordBuffer->data[texCoordBufferView->byteOffset + texCoordAccessor->byteOffset + i * 8]);
-          vertex.texCoord = {texCoord[0], texCoord[1]};
+          texCoords->read(i, values);
+          vertex.texCoord = {values[0], values[1]};
         }
         else
         {
           vertex.texCoord = {0.0f, 0.0f};
         }
 
-        if (hasNormals)
+        if (normals)
         {
-          const float *normal = reinterpret_cast<const float *>(&normalBuffer->data[normalBufferView->byteOffset + normalAccessor->byteOffset + i * 12]);
-          vertex.normal = {normal[0], normal[1], normal[2]};
+          normals->read(i, values);
+          vertex.normal = {values[0], values[1], values[2]};
         }
         else
         {
