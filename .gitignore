@@ -1,5 +1,6 @@
 main.exe
 slang.spv
+cull.spv
 main
 build/
 src/pch.hpp.gch

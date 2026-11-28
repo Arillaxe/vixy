@@ -208,6 +208,7 @@ bool VkContext::isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice)
       features.template get<vk::PhysicalDeviceFeatures2>().features.multiDrawIndirect &&
       features.template get<vk::PhysicalDeviceFeatures2>().features.drawIndirectFirstInstance &&
       features.template get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
+      features.template get<vk::PhysicalDeviceVulkan12Features>().drawIndirectCount &&
       features.template get<vk::PhysicalDeviceVulkan12Features>().shaderSampledImageArrayNonUniformIndexing &&
       features.template get<vk::PhysicalDeviceVulkan12Features>().descriptorBindingPartiallyBound &&
       features.template get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
@@ -227,6 +228,7 @@ uint32_t VkContext::pickQueueFamilyIndex()
   {
     if (
         queueFamilyProperties[qfpIndex].queueFlags & vk::QueueFlagBits::eGraphics &&
+        queueFamilyProperties[qfpIndex].queueFlags & vk::QueueFlagBits::eCompute &&
         physicalDevice.getSurfaceSupportKHR(qfpIndex, *surface))
     {
       return qfpIndex;
@@ -284,6 +286,7 @@ vk::raii::Device VkContext::createDevice()
            }},
           {.shaderDrawParameters = true},
           {
+              .drawIndirectCount = true,
               .shaderSampledImageArrayNonUniformIndexing = true,
               .descriptorBindingPartiallyBound = true,
           },
