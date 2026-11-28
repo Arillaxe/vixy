@@ -35,6 +35,7 @@ private:
   ThreadQueue<ChunkMeshMessage> &meshQueue;
   ThreadQueue<MeshAllocation> &freeQueue;
   std::array<std::vector<MeshAllocation>, MAX_FRAMES_IN_FLIGHT> pendingFrees;
+  std::vector<MeshAllocation> unsubmittedFrees;
   GUI gui;
   uint32_t meshQueueSize;
   uint32_t totalIndices;

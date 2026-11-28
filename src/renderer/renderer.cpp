@@ -318,7 +318,7 @@ void Renderer::render()
 
 		if (it != chunkMeshesAllocations.end())
 		{
-			pendingFrees[frameIndex].push_back(it->second);
+			unsubmittedFrees.push_back(it->second);
 			chunkMeshesAllocations.erase(it);
 		}
 
@@ -438,6 +438,11 @@ void Renderer::render()
 		vkSynchronization[frameIndex].resetDrawFence();
 		std::lock_guard lock(vkContext.getQueueMutex());
 		vkContext.getQueue().submit(submitInfo, *vkSynchronization[frameIndex].getDrawFence());
+
+		auto &frees = pendingFrees[frameIndex];
+		frees.insert(frees.end(), std::make_move_iterator(unsubmittedFrees.begin()), std::make_move_iterator(unsubmittedFrees.end()));
+		unsubmittedFrees.clear();
+
 		result = vkContext.getQueue().presentKHR(presentInfoKHR);
 	}
 
