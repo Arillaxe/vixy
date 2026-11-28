@@ -15,7 +15,7 @@ struct RaycastHit
   float distance = 0.0f;
 };
 
-RaycastHit raycast(
+inline RaycastHit raycast(
     World &world,
     const glm::vec3 &origin,
     const glm::vec3 &direction,

@@ -4,6 +4,7 @@
 #define THREAD_QUEUE_HPP
 
 #include <mutex>
+#include <cstdint>
 #include <queue>
 #include <utility>
 
@@ -32,7 +33,8 @@ public:
 
   uint32_t getSize()
   {
-    return m_queue.size();
+    std::lock_guard lock(m_mutex);
+    return static_cast<uint32_t>(m_queue.size());
   }
 
   void clear()
