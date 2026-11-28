@@ -1,7 +1,7 @@
 #include <core/chunk_generator.hpp>
 #include <core/voxel.hpp>
 #include <core/block.hpp>
-#include <unordered_set>
+#include <algorithm>
 #include <core/math.hpp>
 
 constexpr int MAX_WORLD_HEIGHT = 256;
@@ -48,27 +48,38 @@ int ChunkGenerator::getWorldHeight(int x, int y)
          static_cast<int>(detail * detailAmplitude);
 }
 
-std::vector<int> ChunkGenerator::getRenderChunksYs(int x, int y)
+Heightmap ChunkGenerator::getHeightmap(int x, int z)
 {
-  std::unordered_set<int> set;
+  Heightmap heightmap;
 
   for (int localX = 0; localX < CHUNK_SIZE; ++localX)
   {
     for (int localZ = 0; localZ < CHUNK_SIZE; ++localZ)
     {
       int worldX = x * CHUNK_SIZE + localX;
-      int worldZ = y * CHUNK_SIZE + localZ;
-      int worldHeight = getWorldHeight(worldX, worldZ);
-      int y = floorDiv(worldHeight, CHUNK_SIZE);
+      int worldZ = z * CHUNK_SIZE + localZ;
 
-      set.emplace(y);
+      heightmap[localX * CHUNK_SIZE + localZ] = getWorldHeight(worldX, worldZ);
     }
   }
 
-  return std::vector<int>(set.begin(), set.end());
+  return heightmap;
 }
 
-Chunk ChunkGenerator::generateChunk(int chunkX, int chunkY, int chunkZ)
+std::vector<int> ChunkGenerator::getRenderChunksYs(const Heightmap &heightmap)
+{
+  std::vector<int> chunkYs;
+
+  for (int height : heightmap)
+    chunkYs.push_back(floorDiv(height, CHUNK_SIZE));
+
+  std::sort(chunkYs.begin(), chunkYs.end());
+  chunkYs.erase(std::unique(chunkYs.begin(), chunkYs.end()), chunkYs.end());
+
+  return chunkYs;
+}
+
+Chunk ChunkGenerator::generateChunk(int chunkX, int chunkY, int chunkZ, const Heightmap &heightmap)
 {
   Chunk chunk;
 
@@ -83,9 +94,7 @@ Chunk ChunkGenerator::generateChunk(int chunkX, int chunkY, int chunkZ)
   {
     for (int localZ = 0; localZ < CHUNK_SIZE; ++localZ)
     {
-      int worldX = chunkX * CHUNK_SIZE + localX;
-      int worldZ = chunkZ * CHUNK_SIZE + localZ;
-      int worldHeight = getWorldHeight(worldX, worldZ);
+      int worldHeight = heightmap[localX * CHUNK_SIZE + localZ];
 
       for (int localY = 0; localY < CHUNK_SIZE; ++localY)
       {

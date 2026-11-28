@@ -4,6 +4,8 @@
 #include <perlin_noise.hpp>
 #include <core/chunk.hpp>
 
+typedef std::array<int, CHUNK_SIZE * CHUNK_SIZE> Heightmap;
+
 class ChunkGenerator
 {
 private:
@@ -14,8 +16,9 @@ private:
 public:
   ChunkGenerator(uint32_t seed);
 
-  std::vector<int> getRenderChunksYs(int x, int y);
-  Chunk generateChunk(int x, int y, int z);
+  Heightmap getHeightmap(int x, int z);
+  static std::vector<int> getRenderChunksYs(const Heightmap &heightmap);
+  Chunk generateChunk(int x, int y, int z, const Heightmap &heightmap);
 };
 
 #endif // CHUNK_GENERATOR_HPP
