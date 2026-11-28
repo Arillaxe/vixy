@@ -133,3 +133,40 @@ TEST_CASE("raycast starting inside a solid voxel hits it immediately")
   CHECK(hit.previousVoxel == glm::ivec3(2, 2, 2));
   CHECK(hit.distance == doctest::Approx(0.0f));
 }
+
+TEST_CASE("raycast from an origin on a voxel boundary does not step early on a diagonal ray")
+{
+  World world(0);
+  setBlock(world, {2, 0, 0}, BLOCK_DIRT);
+  setBlock(world, {2, 1, 0}, BLOCK_GRASS);
+
+  RaycastHit hit = raycast(world, voxelToWorld(1.0f, 0.5f, 0.5f), {1.0f, 1.0f, 0.0f}, 8.0f);
+
+  REQUIRE(hit.hit);
+  CHECK(hit.voxel == glm::ivec3(2, 1, 0));
+  CHECK(hit.previousVoxel == glm::ivec3(1, 1, 0));
+  CHECK(hit.distance == doctest::Approx(std::sqrt(2.0f) * VOXEL_SIZE));
+}
+
+TEST_CASE("raycast from an origin on a voxel boundary reports the correct distance")
+{
+  World world(0);
+  setBlock(world, {3, 0, 0}, BLOCK_DIRT);
+
+  RaycastHit hit = raycast(world, voxelToWorld(1.0f, 0.5f, 0.5f), {1.0f, 0.0f, 0.0f}, 8.0f);
+
+  REQUIRE(hit.hit);
+  CHECK(hit.voxel == glm::ivec3(3, 0, 0));
+  CHECK(hit.previousVoxel == glm::ivec3(2, 0, 0));
+  CHECK(hit.distance == doctest::Approx(2.0f * VOXEL_SIZE));
+}
+
+TEST_CASE("raycast from an origin on a voxel boundary does not reach past the maximum distance")
+{
+  World world(0);
+  setBlock(world, {4, 0, 0}, BLOCK_DIRT);
+
+  RaycastHit hit = raycast(world, voxelToWorld(1.0f, 0.5f, 0.5f), {1.0f, 0.0f, 0.0f}, 2.5f);
+
+  CHECK_FALSE(hit.hit);
+}
