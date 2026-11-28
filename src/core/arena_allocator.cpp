@@ -37,31 +37,47 @@ void ArenaAllocator::free(uint32_t offset, uint32_t size)
 {
   assert(size != 0);
 
-  freeRanges.push_back({offset, size});
-
-  std::sort(
+  auto next = std::lower_bound(
       freeRanges.begin(),
       freeRanges.end(),
-      [](const FreeRange &a, const FreeRange &b)
+      offset,
+      [](const FreeRange &range, uint32_t value)
       {
-        return a.offset < b.offset;
+        return range.offset < value;
       });
 
-  std::vector<FreeRange> merged;
-  merged.reserve(freeRanges.size());
+  bool mergePrev = false;
+  bool mergeNext = false;
 
-  for (const FreeRange &range : freeRanges)
+  if (next != freeRanges.begin())
   {
-    if (!merged.empty() &&
-        merged.back().offset + merged.back().size == range.offset)
-    {
-      merged.back().size += range.size;
-    }
-    else
-    {
-      merged.push_back(range);
-    }
+    const FreeRange &prev = *(next - 1);
+    assert(prev.offset + prev.size <= offset);
+    mergePrev = prev.offset + prev.size == offset;
   }
 
-  freeRanges.swap(merged);
+  if (next != freeRanges.end())
+  {
+    assert(offset + size <= next->offset);
+    mergeNext = offset + size == next->offset;
+  }
+
+  if (mergePrev && mergeNext)
+  {
+    (next - 1)->size += size + next->size;
+    freeRanges.erase(next);
+  }
+  else if (mergePrev)
+  {
+    (next - 1)->size += size;
+  }
+  else if (mergeNext)
+  {
+    next->offset = offset;
+    next->size += size;
+  }
+  else
+  {
+    freeRanges.insert(next, {offset, size});
+  }
 }

@@ -143,6 +143,7 @@ MeshAllocation MeshAllocator::allocate(std::vector<ChunkVertex> &vertices, std::
 
   if (!indexAllocator.allocate(indicesAllocationSize, indicesOffset))
   {
+    vertexAllocator.free(verticesOffset, verticesAllocationSize);
     throw std::runtime_error("No index memory");
   }
 
