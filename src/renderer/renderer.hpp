@@ -48,6 +48,8 @@ private:
   vk::raii::DeviceMemory indexBufferMemory;
   vk::raii::Buffer indirectBuffer;
   vk::raii::DeviceMemory indirectBufferMemory;
+  vk::raii::Buffer instanceBuffer;
+  vk::raii::DeviceMemory instanceBufferMemory;
   TextureManager textureManager;
   vk::raii::Sampler sampler;
 

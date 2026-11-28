@@ -2,6 +2,7 @@
 #define CHUNK_HPP
 
 #include <core/voxel.hpp>
+#include <cassert>
 #include <glm/gtx/hash.hpp>
 
 constexpr int CHUNK_SIZE = 16;
@@ -19,7 +20,8 @@ public:
 
   Voxel &getVoxel(int x, int y, int z)
   {
-    return voxels.at(x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z);
+    assert(x >= 0 && x < CHUNK_SIZE && y >= 0 && y < CHUNK_SIZE && z >= 0 && z < CHUNK_SIZE);
+    return voxels[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z];
   }
 };
 

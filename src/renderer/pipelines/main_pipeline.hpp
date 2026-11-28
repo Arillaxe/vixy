@@ -5,6 +5,12 @@
 
 class MainPipeline : public Vk_Pipeline
 {
+private:
+  vk::raii::Pipeline entityPipeline = nullptr;
+
+  vk::raii::Pipeline buildPipeline(const vk::PipelineVertexInputStateCreateInfo &vertexInputInfo, const char *vertexEntry);
+  vk::raii::Pipeline createEntityPipeline();
+
 protected:
   vk::raii::PipelineLayout createPipelineLayout() override;
   vk::raii::Pipeline createPipeline() override;
@@ -13,6 +19,8 @@ protected:
 
 public:
   MainPipeline(VkContext &context, VkSwapchain &swapchain, VkResource &resource);
+
+  vk::raii::Pipeline &getEntityPipeline() { return entityPipeline; }
 };
 
 #endif // MAIN_PIPELINE_HPP

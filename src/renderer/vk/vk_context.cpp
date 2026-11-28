@@ -206,6 +206,7 @@ bool VkContext::isDeviceSuitable(vk::raii::PhysicalDevice const &physicalDevice)
   bool supportsRequiredFeatures =
       features.template get<vk::PhysicalDeviceFeatures2>().features.sampleRateShading &&
       features.template get<vk::PhysicalDeviceFeatures2>().features.multiDrawIndirect &&
+      features.template get<vk::PhysicalDeviceFeatures2>().features.drawIndirectFirstInstance &&
       features.template get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
       features.template get<vk::PhysicalDeviceVulkan12Features>().shaderSampledImageArrayNonUniformIndexing &&
       features.template get<vk::PhysicalDeviceVulkan12Features>().descriptorBindingPartiallyBound &&
@@ -279,6 +280,7 @@ vk::raii::Device VkContext::createDevice()
           {.features = {
                .sampleRateShading = true,
                .multiDrawIndirect = true,
+               .drawIndirectFirstInstance = true,
            }},
           {.shaderDrawParameters = true},
           {

@@ -33,6 +33,8 @@ struct BlockFaceTextures
   BlockTexture side;
 };
 
+static_assert(BLOCK_TYPE_COUNT <= 256, "BlockType must fit in Voxel::type");
+
 constexpr std::array<BlockFaceTextures, BLOCK_TYPE_COUNT> BLOCK_FACE_TEXTURES = {{
     {BLOCK_TEXTURE_GRASS, BLOCK_TEXTURE_GRASS, BLOCK_TEXTURE_GRASS},
     {BLOCK_TEXTURE_GRASS, BLOCK_TEXTURE_DIRT, BLOCK_TEXTURE_DIRT_GRASS},

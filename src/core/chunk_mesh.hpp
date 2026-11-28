@@ -7,7 +7,7 @@
 struct ChunkMesh
 {
   // ChunkPos chunkPos;
-  std::vector<Vertex> vertices;
+  std::vector<ChunkVertex> vertices;
   std::vector<uint32_t> indices;
 };
 
