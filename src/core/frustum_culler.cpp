@@ -14,10 +14,7 @@ Plane makePlane(float a, float b, float c, float d)
 
 FrustumCuller::FrustumCuller(const Camera &camera, float aspectRatio)
 {
-  glm::mat4 view = glm::mat4_cast(glm::conjugate(camera.rotation)) *
-                   glm::translate(glm::mat4(1.0f), -camera.position);
-  glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100000.0f);
-  glm::mat4 vp = projection * view;
+  glm::mat4 vp = camera.projectionMatrix(aspectRatio) * camera.viewMatrix();
 
   // Left
   planes[0] = makePlane(
@@ -49,17 +46,17 @@ FrustumCuller::FrustumCuller(const Camera &camera, float aspectRatio)
 
   // Near
   planes[4] = makePlane(
-      vp[0][3] + vp[0][2],
-      vp[1][3] + vp[1][2],
-      vp[2][3] + vp[2][2],
-      vp[3][3] + vp[3][2]);
-
-  // Far
-  planes[5] = makePlane(
       vp[0][3] - vp[0][2],
       vp[1][3] - vp[1][2],
       vp[2][3] - vp[2][2],
       vp[3][3] - vp[3][2]);
+
+  // Far
+  planes[5] = makePlane(
+      vp[0][2],
+      vp[1][2],
+      vp[2][2],
+      vp[3][2]);
 }
 
 bool FrustumCuller::testAABB(const glm::vec3 &min,

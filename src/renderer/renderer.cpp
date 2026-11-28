@@ -226,7 +226,7 @@ void Renderer::render()
 			vk::ImageAspectFlagBits::eDepth);
 
 	vk::ClearValue clearColor = vk::ClearColorValue(0.49f, 0.70f, 1.00f, 1.0f);
-	vk::ClearValue clearDepth = vk::ClearDepthStencilValue(1.0f, 0);
+	vk::ClearValue clearDepth = vk::ClearDepthStencilValue(0.0f, 0);
 
 	vk::RenderingAttachmentInfo attachmentInfo = {
 			.imageView = vkSwapchain.getColorImageView(),
