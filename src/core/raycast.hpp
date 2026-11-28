@@ -43,7 +43,7 @@ inline RaycastHit raycast(
       return std::numeric_limits<float>::infinity();
 
     if (ds > 0.0f)
-      return (std::ceil(s) - s) / ds;
+      return (std::floor(s) + 1.0f - s) / ds;
     else
       return (s - std::floor(s)) / -ds;
   };
