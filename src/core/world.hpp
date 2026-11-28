@@ -13,6 +13,7 @@ private:
   ChunkGenerator chunkGenerator;
   std::unordered_map<glm::ivec3, Chunk> chunks;
   std::unordered_set<glm::ivec3> generatedEmpty;
+  std::unordered_map<glm::ivec2, std::vector<int>> columnChunkYs;
 
 public:
   World(uint32_t seed);

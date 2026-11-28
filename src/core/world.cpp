@@ -8,7 +8,13 @@ World::World(uint32_t seed) : chunkGenerator(seed)
 
 void World::loadChunk(int x, int z)
 {
-  std::vector<int> chunkYs = chunkGenerator.getRenderChunksYs(x, z);
+  glm::ivec2 column{x, z};
+
+  if (columnChunkYs.contains(column))
+    return;
+
+  Heightmap heightmap = chunkGenerator.getHeightmap(x, z);
+  std::vector<int> chunkYs = ChunkGenerator::getRenderChunksYs(heightmap);
 
   for (auto &y : chunkYs)
   {
@@ -19,7 +25,7 @@ void World::loadChunk(int x, int z)
       continue;
     }
 
-    auto chunk = chunkGenerator.generateChunk(x, y, z);
+    auto chunk = chunkGenerator.generateChunk(x, y, z, heightmap);
 
     if (chunk.voxelCount == 0)
     {
@@ -28,6 +34,8 @@ void World::loadChunk(int x, int z)
 
     chunks.emplace(pos, std::move(chunk));
   }
+
+  columnChunkYs.emplace(column, std::move(chunkYs));
 }
 
 void World::unloadChunk(int x, int y, int z)
@@ -68,9 +76,12 @@ std::vector<Chunk *> World::getRenderChunks(int x, int z)
 {
   std::vector<Chunk *> ret;
 
-  auto chunkYs = chunkGenerator.getRenderChunksYs(x, z);
+  auto columnIt = columnChunkYs.find({x, z});
 
-  for (auto &y : chunkYs)
+  if (columnIt == columnChunkYs.end())
+    return ret;
+
+  for (auto &y : columnIt->second)
   {
     auto chunkIt = chunks.find({x, y, z});
 

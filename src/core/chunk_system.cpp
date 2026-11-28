@@ -262,32 +262,35 @@ void ChunkSystem::update()
 
   for (auto &coord : desiredChunks)
   {
+    if (loadedChunks.contains(coord))
+      continue;
+
     // A full pass over every column is slow, so apply pending block edits
     // between columns instead of making them wait for the whole pass.
     processEdits();
 
     world.loadChunk(coord.x, coord.y);
 
-    if (!loadedChunks.contains(coord))
+    // mark neighboruing chunks as dirty
+
+    std::array<glm::ivec2, 4> offs = {{
+        {1, 0},
+        {-1, 0},
+        {0, 1},
+        {0, -1},
+    }};
+
+    for (auto &offset : offs)
     {
-      // mark neighboruing chunks as dirty
-
-      std::array<glm::ivec2, 4> offs = {{
-          {1, 0},
-          {-1, 0},
-          {0, 1},
-          {0, -1},
-      }};
-
-      for (auto &offset : offs)
-      {
-        dirtyChunks.emplace(coord + offset);
-      }
+      dirtyChunks.emplace(coord + offset);
     }
   }
 
   for (auto &coord : desiredChunks)
   {
+    if (loadedChunks.contains(coord) && !dirtyChunks.contains(coord))
+      continue;
+
     processEdits();
 
     auto yChunks = world.getRenderChunks(coord.x, coord.y);
