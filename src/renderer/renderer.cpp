@@ -288,7 +288,8 @@ void Renderer::render()
 		auto &mesh = meshComponent->getMesh();
 		auto &indices = mesh.getIndices();
 
-		commandBuffer.bindVertexBuffers(0, *mesh.getVertexBuffer(), {0});
+		vk::DeviceSize vertexOffset = 0;
+		commandBuffer.bindVertexBuffers(0, *mesh.getVertexBuffer(), vertexOffset);
 		commandBuffer.bindIndexBuffer(*mesh.getIndexBuffer(), 0, vk::IndexTypeValue<uint32_t>::value);
 		PushConstants pushConstants;
 
