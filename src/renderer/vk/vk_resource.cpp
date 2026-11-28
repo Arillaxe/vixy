@@ -71,16 +71,23 @@ vk::raii::ImageView VkResource::createImageView(vk::Image const &image, vk::Form
   return vk::raii::ImageView(vkContext.getDevice(), viewInfo);
 }
 
-vk::raii::Buffer VkResource::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage)
+vk::raii::Buffer VkResource::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, bool shared)
 {
   // static uint32_t counter = 0;
   // counter++;
   // std::cout << counter << std::endl;
 
+  std::array<uint32_t, 2> queueFamilyIndices{
+      vkContext.getQueueFamilyIndex(),
+      vkContext.getTransferQueueFamilyIndex(),
+  };
+
   vk::BufferCreateInfo bufferInfo{
       .size = size,
       .usage = usage,
-      .sharingMode = vk::SharingMode::eExclusive,
+      .sharingMode = shared ? vk::SharingMode::eConcurrent : vk::SharingMode::eExclusive,
+      .queueFamilyIndexCount = shared ? static_cast<uint32_t>(queueFamilyIndices.size()) : 0u,
+      .pQueueFamilyIndices = shared ? queueFamilyIndices.data() : nullptr,
   };
 
   return vk::raii::Buffer(vkContext.getDevice(), bufferInfo);

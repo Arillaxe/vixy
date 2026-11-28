@@ -29,7 +29,7 @@ public:
   VkResource(VkContext &context, VkCommand &command);
 
   vk::raii::ImageView createImageView(vk::Image const &image, vk::Format format, vk::ImageAspectFlagBits aspectFlags, uint32_t mipLevels) const;
-  vk::raii::Buffer createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage);
+  vk::raii::Buffer createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, bool shared = false);
   vk::raii::DeviceMemory getBufferMemory(vk::raii::Buffer &buffer, vk::MemoryPropertyFlags properties);
   vk::raii::DeviceMemory getImageMemory(vk::raii::Image &image, vk::MemoryPropertyFlags properties);
   void copyBuffer(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer, vk::DeviceSize size);

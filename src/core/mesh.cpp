@@ -177,7 +177,7 @@ void Mesh::createVertexBuffer()
 
   stagingBufferMemory.unmapMemory();
 
-  vertexBuffer = vkResource.createBuffer(bufferSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst);
+  vertexBuffer = vkResource.createBuffer(bufferSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, true);
   vertexBufferMemory = vkResource.getBufferMemory(vertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
   vkResource.copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
@@ -195,7 +195,7 @@ void Mesh::createIndexBuffer()
 
   stagingBufferMemory.unmapMemory();
 
-  indexBuffer = vkResource.createBuffer(bufferSize, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst);
+  indexBuffer = vkResource.createBuffer(bufferSize, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, true);
   indexBufferMemory = vkResource.getBufferMemory(indexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
   vkResource.copyBuffer(stagingBuffer, indexBuffer, bufferSize);
