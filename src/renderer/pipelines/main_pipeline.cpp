@@ -7,8 +7,8 @@
 #include <array>
 #include <vector>
 
-MainPipeline::MainPipeline(VkContext &context, VkSwapchain &swapchain, VkResource &resource)
-    : Vk_Pipeline(context, swapchain, resource, "slang.spv")
+MainPipeline::MainPipeline(GpuContext &context, GpuSwapchain &swapchain, GpuResource &resource)
+    : GpuPipeline(context, swapchain, resource, "slang.spv")
 {
   initialize();
   entityPipeline = createEntityPipeline();
@@ -29,7 +29,7 @@ vk::raii::PipelineLayout MainPipeline::createPipelineLayout()
       .pPushConstantRanges = &pushRange,
   };
 
-  return vk::raii::PipelineLayout(vkContext.getDevice(), pipelineLayoutInfo);
+  return vk::raii::PipelineLayout(gpuContext.getDevice(), pipelineLayoutInfo);
 }
 
 vk::raii::Pipeline MainPipeline::createPipeline()
@@ -165,7 +165,7 @@ vk::raii::Pipeline MainPipeline::buildPipeline(const vk::PipelineVertexInputStat
   };
 
   vk::PipelineMultisampleStateCreateInfo multisampling{
-      .rasterizationSamples = vkContext.getMsaaSamples(),
+      .rasterizationSamples = gpuContext.getMsaaSamples(),
       .sampleShadingEnable = vk::True,
       .minSampleShading = 0.2f,
   };
@@ -209,11 +209,11 @@ vk::raii::Pipeline MainPipeline::buildPipeline(const vk::PipelineVertexInputStat
               .renderPass = nullptr,
           },
           {.colorAttachmentCount = 1,
-           .pColorAttachmentFormats = &vkSwapchain.getSurfaceFormat().format,
+           .pColorAttachmentFormats = &gpuSwapchain.getSurfaceFormat().format,
            .depthAttachmentFormat = findDepthFormat()},
       };
 
-  return vk::raii::Pipeline(vkContext.getDevice(), nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
+  return vk::raii::Pipeline(gpuContext.getDevice(), nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
 }
 
 vk::raii::DescriptorSetLayout MainPipeline::createDescriptorSetLayout()
@@ -249,21 +249,21 @@ vk::raii::DescriptorSetLayout MainPipeline::createDescriptorSetLayout()
       .pBindings = bindings.data(),
   };
 
-  return vk::raii::DescriptorSetLayout(vkContext.getDevice(), layoutInfo);
+  return vk::raii::DescriptorSetLayout(gpuContext.getDevice(), layoutInfo);
 }
 
 vk::raii::DescriptorSet MainPipeline::createDescriptorSet()
 {
   vk::DescriptorSetAllocateInfo allocInfo{
-      .descriptorPool = vkResource.getDescriptorPool(),
+      .descriptorPool = gpuResource.getDescriptorPool(),
       .descriptorSetCount = 1,
       .pSetLayouts = &*descriptorSetLayout,
   };
 
-  auto descriptorSet = std::move(vkContext.getDevice().allocateDescriptorSets(allocInfo).front());
+  auto descriptorSet = std::move(gpuContext.getDevice().allocateDescriptorSets(allocInfo).front());
 
   vk::DescriptorBufferInfo bufferInfo{
-      .buffer = vkUbo.getUniformBuffer(),
+      .buffer = gpuUbo.getUniformBuffer(),
       .offset = 0,
       .range = sizeof(UniformBufferObject),
   };
@@ -279,7 +279,7 @@ vk::raii::DescriptorSet MainPipeline::createDescriptorSet()
       },
   }};
 
-  vkContext.getDevice().updateDescriptorSets(descriptorWrite, {});
+  gpuContext.getDevice().updateDescriptorSets(descriptorWrite, {});
 
   return descriptorSet;
 }

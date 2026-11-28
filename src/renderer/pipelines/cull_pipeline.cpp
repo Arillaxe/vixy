@@ -2,9 +2,9 @@
 
 #include <array>
 
-CullPipeline::CullPipeline(VkContext &context, VkResource &resource)
-    : vkContext(context),
-      vkResource(resource),
+CullPipeline::CullPipeline(GpuContext &context, GpuResource &resource)
+    : gpuContext(context),
+      gpuResource(resource),
       shader(context, "cull.spv"),
       descriptorSetLayout(createDescriptorSetLayout()),
       pipelineLayout(createPipelineLayout()),
@@ -30,7 +30,7 @@ vk::raii::DescriptorSetLayout CullPipeline::createDescriptorSetLayout()
       .pBindings = bindings.data(),
   };
 
-  return vk::raii::DescriptorSetLayout(vkContext.getDevice(), layoutInfo);
+  return vk::raii::DescriptorSetLayout(gpuContext.getDevice(), layoutInfo);
 }
 
 vk::raii::PipelineLayout CullPipeline::createPipelineLayout()
@@ -48,7 +48,7 @@ vk::raii::PipelineLayout CullPipeline::createPipelineLayout()
       .pPushConstantRanges = &pushRange,
   };
 
-  return vk::raii::PipelineLayout(vkContext.getDevice(), pipelineLayoutInfo);
+  return vk::raii::PipelineLayout(gpuContext.getDevice(), pipelineLayoutInfo);
 }
 
 vk::raii::Pipeline CullPipeline::createPipeline()
@@ -62,18 +62,18 @@ vk::raii::Pipeline CullPipeline::createPipeline()
       .layout = pipelineLayout,
   };
 
-  return vk::raii::Pipeline(vkContext.getDevice(), nullptr, pipelineInfo);
+  return vk::raii::Pipeline(gpuContext.getDevice(), nullptr, pipelineInfo);
 }
 
 vk::raii::DescriptorSet CullPipeline::createDescriptorSet()
 {
   vk::DescriptorSetAllocateInfo allocInfo{
-      .descriptorPool = vkResource.getDescriptorPool(),
+      .descriptorPool = gpuResource.getDescriptorPool(),
       .descriptorSetCount = 1,
       .pSetLayouts = &*descriptorSetLayout,
   };
 
-  return std::move(vkContext.getDevice().allocateDescriptorSets(allocInfo).front());
+  return std::move(gpuContext.getDevice().allocateDescriptorSets(allocInfo).front());
 }
 
 void CullPipeline::bindBuffers(vk::Buffer chunks, vk::Buffer commands, vk::Buffer instances, vk::Buffer counts)
@@ -100,7 +100,7 @@ void CullPipeline::bindBuffers(vk::Buffer chunks, vk::Buffer commands, vk::Buffe
     };
   }
 
-  vkContext.getDevice().updateDescriptorSets(writes, {});
+  gpuContext.getDevice().updateDescriptorSets(writes, {});
 }
 
 void CullPipeline::dispatch(vk::raii::CommandBuffer &commandBuffer, const CullPushConstants &pushConstants)

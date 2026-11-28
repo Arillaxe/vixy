@@ -74,11 +74,6 @@ void World::unloadColumn(int x, int z)
   columns.erase(columnIt);
 }
 
-bool World::isChunkResolved(int x, int y, int z) const
-{
-  return chunks.contains(glm::ivec3{x, y, z});
-}
-
 bool World::isImplicitSolid(int x, int y, int z) const
 {
   auto columnIt = columns.find({x, z});

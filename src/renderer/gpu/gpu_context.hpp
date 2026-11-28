@@ -1,12 +1,12 @@
-#ifndef VK_CONTEXT_HPP
-#define VK_CONTEXT_HPP
+#ifndef GPU_CONTEXT_HPP
+#define GPU_CONTEXT_HPP
 
 #include <renderer/vk.hpp>
 #include <core/window.hpp>
 #include <vector>
 #include <mutex>
 
-class VkContext
+class GpuContext
 {
 private:
   Window &window;
@@ -45,7 +45,7 @@ private:
   vk::raii::Queue createTransferQueue();
 
 public:
-  VkContext(Window &win);
+  GpuContext(Window &win);
 
   vk::raii::SurfaceKHR &getSurface() { return surface; }
   vk::raii::PhysicalDevice &getPhysicalDevice() { return physicalDevice; }
@@ -62,4 +62,4 @@ public:
   vk::raii::Instance &getInstance() { return instance; }
 };
 
-#endif // VK_CONTEXT_HPP
+#endif // GPU_CONTEXT_HPP

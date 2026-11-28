@@ -38,7 +38,7 @@ public:
         input(window, camera),
         world(123456u),
         renderer(window, scene, camera, meshQueue, freeQueue),
-        chunkSystem(renderer.getVkResource(), camera.position, world, meshQueue, freeQueue, renderer.getBuffers())
+        chunkSystem(renderer.getGpuResource(), camera.position, world, meshQueue, freeQueue, renderer.getBuffers())
   {
     chunkSystemThread = std::thread(&ChunkSystem::run, &chunkSystem);
   }

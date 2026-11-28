@@ -1,20 +1,20 @@
-#ifndef VK_SWAPCHAIN_HPP
-#define VK_SWAPCHAIN_HPP
+#ifndef GPU_SWAPCHAIN_HPP
+#define GPU_SWAPCHAIN_HPP
 
 #include <renderer/vk.hpp>
 #include <core/window.hpp>
-#include <renderer/vk/vk_context.hpp>
-#include <renderer/vk/vk_resource.hpp>
-#include <renderer/vk/vk_synchronization.hpp>
+#include <renderer/gpu/gpu_context.hpp>
+#include <renderer/gpu/gpu_resource.hpp>
+#include <renderer/gpu/gpu_synchronization.hpp>
 #include <vector>
 
-class VkSwapchain
+class GpuSwapchain
 {
 private:
   Window &window;
-  VkContext &vkContext;
-  VkResource &vkResource;
-  std::vector<VkSynchronization> &vkSynchronization;
+  GpuContext &gpuContext;
+  GpuResource &gpuResource;
+  std::vector<GpuSynchronization> &gpuSynchronization;
   vk::SurfaceCapabilitiesKHR capabilities;
   vk::Extent2D extent;
   vk::SurfaceFormatKHR surfaceFormat;
@@ -42,7 +42,7 @@ private:
   vk::Format findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
 
 public:
-  VkSwapchain(VkContext &context, Window &win, VkResource &resource, std::vector<VkSynchronization> &synchronization);
+  GpuSwapchain(GpuContext &context, Window &win, GpuResource &resource, std::vector<GpuSynchronization> &synchronization);
 
   void recreateSwapchain();
   uint32_t acquireNextImage(uint32_t frameIndex);
@@ -60,4 +60,4 @@ public:
   vk::raii::ImageView &getDepthImageView() { return depthImageView; }
 };
 
-#endif // VK_SWAPCHAIN_HPP
+#endif // GPU_SWAPCHAIN_HPP

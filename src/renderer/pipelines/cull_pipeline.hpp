@@ -2,9 +2,9 @@
 #define CULL_PIPELINE_HPP
 
 #include <renderer/vk.hpp>
-#include <renderer/vk/vk_context.hpp>
-#include <renderer/vk/vk_resource.hpp>
-#include <renderer/vk/vk_shader.hpp>
+#include <renderer/gpu/gpu_context.hpp>
+#include <renderer/gpu/gpu_resource.hpp>
+#include <renderer/gpu/gpu_shader.hpp>
 #include <cstddef>
 
 struct ChunkCullData
@@ -35,9 +35,9 @@ constexpr uint32_t CULL_WORKGROUP_SIZE = 64;
 class CullPipeline
 {
 private:
-  VkContext &vkContext;
-  VkResource &vkResource;
-  VkShader shader;
+  GpuContext &gpuContext;
+  GpuResource &gpuResource;
+  GpuShader shader;
   vk::raii::DescriptorSetLayout descriptorSetLayout;
   vk::raii::PipelineLayout pipelineLayout;
   vk::raii::Pipeline pipeline;
@@ -49,7 +49,7 @@ private:
   vk::raii::DescriptorSet createDescriptorSet();
 
 public:
-  CullPipeline(VkContext &context, VkResource &resource);
+  CullPipeline(GpuContext &context, GpuResource &resource);
 
   void bindBuffers(vk::Buffer chunks, vk::Buffer commands, vk::Buffer instances, vk::Buffer counts);
   void dispatch(vk::raii::CommandBuffer &commandBuffer, const CullPushConstants &pushConstants);

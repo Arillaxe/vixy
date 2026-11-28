@@ -27,7 +27,7 @@ PCH_GCH := $(PCH_HDR).gch
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 SRCS := $(call rwildcard,src,*.cpp)
 
-# src/renderer/vk/vk_context.cpp -> build/renderer.vk.vk_context.o
+# src/renderer/gpu/gpu_context.cpp -> build/renderer.gpu.gpu_context.o
 obj_of = $(BUILD_DIR)/$(subst /,.,$(patsubst src/%.cpp,%,$1)).o
 OBJS := $(foreach s,$(SRCS),$(call obj_of,$s))
 DEPS := $(OBJS:.o=.d)

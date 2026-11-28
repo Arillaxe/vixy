@@ -16,7 +16,7 @@ A voxel terrain engine in C++20 on Vulkan 1.3 (vulkan-hpp RAII), using GLFW and 
 
 - `src/core/`: world, chunks, terrain generation (`chunk_generator`), greedy mesher (`chunk_mesh_generator`), streaming thread (`chunk_system`), input, raycast, math helpers.
 - `src/renderer/`: `Renderer` (frame loop, indirect draw), `MeshAllocator` (sub-allocates the shared GPU buffers through `core/arena_allocator`), `TextureManager`, ImGui wrapper (`gui.hpp`), `pipelines/main_pipeline`.
-- `src/renderer/vk/`: thin RAII wrappers named `Vk*` (`VkContext`, `VkSwapchain`, `VkResource`, …). These are project classes, not Vulkan C types.
+- `src/renderer/gpu/`: thin RAII wrappers named `Gpu*` (`GpuContext`, `GpuSwapchain`, `GpuResource`, `GpuPipeline`, …).
 - `src/ecs/`: a minimal entity/component system. It is currently unused; no entities are added to the scene and the robot model is not loaded.
 - `src/app.hpp`: owns everything and contains the main loop and the block break/place logic.
 - **Vendored code (don't edit or review):** `include/` (glm, imgui headers, tiny_gltf, json.hpp, perlin_noise.hpp, stb) and `src/imgui/`. The stb and tinygltf implementations are compiled only in `src/core/mesh.cpp`.

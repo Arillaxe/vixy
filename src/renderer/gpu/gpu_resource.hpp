@@ -1,32 +1,32 @@
-#ifndef VK_RESOURCE_HPP
-#define VK_RESOURCE_HPP
+#ifndef GPU_RESOURCE_HPP
+#define GPU_RESOURCE_HPP
 
 #include <renderer/vk.hpp>
-#include <renderer/vk/vk_context.hpp>
-#include <renderer/vk/vk_command.hpp>
+#include <renderer/gpu/gpu_context.hpp>
+#include <renderer/gpu/gpu_command.hpp>
 
-class VkResource
+class GpuResource
 {
 private:
-  VkContext &vkContext;
-  VkCommand &vkCommand;
+  GpuContext &gpuContext;
+  GpuCommand &gpuCommand;
   vk::raii::DescriptorPool descriptorPool;
 
   uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
   vk::raii::DescriptorPool createDescriptorPool();
-  void transition_image_layout(
+  void transitionImageLayout(
       vk::raii::CommandBuffer &commandBuffer,
       vk::Image image,
-      vk::ImageLayout old_layout,
-      vk::ImageLayout new_layout,
-      vk::AccessFlags2 src_access_mask,
-      vk::AccessFlags2 dst_access_mask,
-      vk::PipelineStageFlags2 src_stage_mask,
-      vk::PipelineStageFlags2 dst_stage_mask,
-      vk::ImageAspectFlags image_aspect_flags);
+      vk::ImageLayout oldLayout,
+      vk::ImageLayout newLayout,
+      vk::AccessFlags2 srcAccessMask,
+      vk::AccessFlags2 dstAccessMask,
+      vk::PipelineStageFlags2 srcStageMask,
+      vk::PipelineStageFlags2 dstStageMask,
+      vk::ImageAspectFlags imageAspectFlags);
 
 public:
-  VkResource(VkContext &context, VkCommand &command);
+  GpuResource(GpuContext &context, GpuCommand &command);
 
   vk::raii::ImageView createImageView(vk::Image const &image, vk::Format format, vk::ImageAspectFlagBits aspectFlags, uint32_t mipLevels) const;
   vk::raii::Buffer createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, bool shared = false);
@@ -45,7 +45,7 @@ public:
   void uploadImage(vk::raii::Buffer &stagingBuffer, vk::raii::Image &image, int width, int height);
 
   vk::raii::DescriptorPool &getDescriptorPool() { return descriptorPool; }
-  VkContext &getContext() { return vkContext; }
+  GpuContext &getContext() { return gpuContext; }
 };
 
-#endif // VK_RESOURCE_HPP
+#endif // GPU_RESOURCE_HPP

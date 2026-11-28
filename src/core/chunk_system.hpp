@@ -11,16 +11,8 @@
 #include <mutex>
 #include <thread>
 #include <chrono>
-#include <renderer/vk/vk_resource.hpp>
+#include <renderer/gpu/gpu_resource.hpp>
 #include <renderer/mesh_allocator.hpp>
-
-struct IVec2Hash
-{
-  std::size_t operator()(const glm::ivec2 &v) const
-  {
-    return std::hash<int>()(v.x) ^ (std::hash<int>()(v.y) << 1);
-  }
-};
 
 // A block break/place request from the main thread. The chunk thread runs the
 // raycast itself, because it is the only thread allowed to read the World.
@@ -43,7 +35,7 @@ struct BlockEdit
 class ChunkSystem
 {
 private:
-  VkResource &vkResource;
+  GpuResource &gpuResource;
   World &world;
   ChunkMeshGenerator chunkMeshGenerator;
   ThreadQueue<ChunkMeshMessage> &meshQueue;
@@ -78,7 +70,7 @@ private:
   std::unordered_set<glm::ivec2> getChunksAround(glm::vec3 &position);
 
 public:
-  ChunkSystem(VkResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<ChunkMeshMessage> &meshQueue, ThreadQueue<MeshAllocation> &freeQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers);
+  ChunkSystem(GpuResource &resource, glm::vec3 initialViewerPosition, World &w, ThreadQueue<ChunkMeshMessage> &meshQueue, ThreadQueue<MeshAllocation> &freeQueue, std::pair<vk::raii::Buffer &, vk::raii::Buffer &> buffers);
 
   // Thread-safe. Queues a block edit and wakes the chunk thread, which applies
   // it within about a millisecond, even in the middle of a streaming pass.

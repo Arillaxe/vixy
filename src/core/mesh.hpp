@@ -4,14 +4,14 @@
 #include <tiny_gltf.h>
 
 #include <renderer/vertex.hpp>
-#include <renderer/vk/vk_resource.hpp>
+#include <renderer/gpu/gpu_resource.hpp>
 #include <string>
 #include <vector>
 
 class Mesh
 {
 private:
-  VkResource &vkResource;
+  GpuResource &gpuResource;
   tinygltf::Model model;
   std::vector<Vertex> vertices;
   std::vector<uint32_t> indices;
@@ -27,7 +27,7 @@ private:
   void createIndexBuffer();
 
 public:
-  Mesh(VkResource &resource, const std::string &filename);
+  Mesh(GpuResource &resource, const std::string &filename);
 
   vk::raii::Buffer &getVertexBuffer() { return vertexBuffer; }
   vk::raii::Buffer &getIndexBuffer() { return indexBuffer; }

@@ -1,15 +1,15 @@
-#include <renderer/vk/vk_pipeline.hpp>
+#include <renderer/gpu/gpu_pipeline.hpp>
 
 #include <stdexcept>
 
-Vk_Pipeline::Vk_Pipeline(VkContext &context, VkSwapchain &swapchain, VkResource &resource, const std::string &shaderFilename)
-    : vkContext(context),
-      vkSwapchain(swapchain),
-      vkResource(resource),
+GpuPipeline::GpuPipeline(GpuContext &context, GpuSwapchain &swapchain, GpuResource &resource, const std::string &shaderFilename)
+    : gpuContext(context),
+      gpuSwapchain(swapchain),
+      gpuResource(resource),
       shader(context, shaderFilename),
-      vkUbo(vkContext, vkResource, vkSwapchain) {}
+      gpuUbo(gpuContext, gpuResource, gpuSwapchain) {}
 
-void Vk_Pipeline::initialize()
+void GpuPipeline::initialize()
 {
   descriptorSetLayout = createDescriptorSetLayout();
   pipelineLayout = createPipelineLayout();
@@ -17,7 +17,7 @@ void Vk_Pipeline::initialize()
   descriptorSet = createDescriptorSet();
 }
 
-vk::Format Vk_Pipeline::findDepthFormat()
+vk::Format GpuPipeline::findDepthFormat()
 {
   return findSupportedFormat(
       {vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint},
@@ -25,11 +25,11 @@ vk::Format Vk_Pipeline::findDepthFormat()
       vk::FormatFeatureFlagBits::eDepthStencilAttachment);
 }
 
-vk::Format Vk_Pipeline::findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
+vk::Format GpuPipeline::findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
 {
   for (const auto format : candidates)
   {
-    vk::FormatProperties props = vkContext.getPhysicalDevice().getFormatProperties(format);
+    vk::FormatProperties props = gpuContext.getPhysicalDevice().getFormatProperties(format);
 
     if (
         (tiling == vk::ImageTiling::eLinear && (props.linearTilingFeatures & features) == features) ||
