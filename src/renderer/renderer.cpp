@@ -286,6 +286,10 @@ void Renderer::render()
 			continue;
 
 		auto &mesh = meshComponent->getMesh();
+
+		if (mesh.isEmpty())
+			continue;
+
 		auto &indices = mesh.getIndices();
 
 		vk::DeviceSize vertexOffset = 0;

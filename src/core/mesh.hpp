@@ -32,6 +32,7 @@ public:
   vk::raii::Buffer &getVertexBuffer() { return vertexBuffer; }
   vk::raii::Buffer &getIndexBuffer() { return indexBuffer; }
   std::vector<uint32_t> &getIndices() { return indices; }
+  bool isEmpty() const { return vertices.empty() || indices.empty(); }
 };
 
 #endif // MESH_HPP
