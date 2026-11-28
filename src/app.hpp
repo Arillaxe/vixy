@@ -6,9 +6,6 @@
 #include <core/window.hpp>
 #include <renderer/renderer.hpp>
 #include <core/scene.hpp>
-#include <ecs/entity.hpp>
-#include <ecs/components/mesh_component.hpp>
-#include <ecs/components/transform_component.hpp>
 #include <core/input.hpp>
 #include <core/camera.hpp>
 #include <core/world.hpp>
@@ -35,27 +32,14 @@ private:
   Renderer renderer;
   ChunkSystem chunkSystem;
 
-  Mesh robotMesh;
-
 public:
   App()
       : window(WIDTH, HEIGHT),
         input(window, camera),
         world(123456u),
         renderer(window, scene, camera, meshQueue, freeQueue),
-        chunkSystem(renderer.getVkResource(), camera.position, world, meshQueue, freeQueue, renderer.getBuffers()),
-        robotMesh(renderer.getVkResource(), "./models/robot.gltf")
+        chunkSystem(renderer.getVkResource(), camera.position, world, meshQueue, freeQueue, renderer.getBuffers())
   {
-    auto object = std::make_unique<Entity>("object");
-
-    object->addComponent<TransformComponent>();
-    object->addComponent<MeshComponent>(robotMesh);
-
-    object->getComponent<TransformComponent>()->setPosition(glm::vec3(0.0f, 0.0f, 100.0f));
-    object->getComponent<TransformComponent>()->setScale(glm::vec3(0.5f));
-
-    // scene.addEntity(std::move(object));
-
     chunkSystemThread = std::thread(&ChunkSystem::run, &chunkSystem);
   }
 
