@@ -18,6 +18,12 @@ private:
 
 public:
   explicit Entity(const std::string &entityName) : name(entityName) {}
+  ~Entity();
+
+  Entity(const Entity &) = delete;
+  Entity &operator=(const Entity &) = delete;
+  Entity(Entity &&) = delete;
+  Entity &operator=(Entity &&) = delete;
 
   const std::string &getName() const { return name; }
   bool isActive() const { return active; }
@@ -71,6 +77,7 @@ public:
     if (it != componentMap.end())
     {
       Component *componentPtr = it->second;
+      componentPtr->destroy();
       componentMap.erase(it);
 
       for (auto compIt = components.begin(); compIt != components.end(); ++compIt)

@@ -6,11 +6,11 @@
 class Scene
 {
 private:
-  std::vector<Entity> entities;
+  std::vector<std::unique_ptr<Entity>> entities;
 
 public:
-  void addEntity(Entity &&entity) { entities.push_back(std::move(entity)); }
-  std::vector<Entity> &getEntities() { return entities; }
+  void addEntity(std::unique_ptr<Entity> entity) { entities.push_back(std::move(entity)); }
+  std::vector<std::unique_ptr<Entity>> &getEntities() { return entities; }
 };
 
 #endif // SCENE_HPP

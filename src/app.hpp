@@ -46,13 +46,13 @@ public:
         chunkSystem(renderer.getVkResource(), camera.position, world, meshQueue, freeQueue, renderer.getBuffers()),
         robotMesh(renderer.getVkResource(), "./models/robot.gltf")
   {
-    Entity object("object");
+    auto object = std::make_unique<Entity>("object");
 
-    object.addComponent<TransformComponent>();
-    object.addComponent<MeshComponent>(robotMesh);
+    object->addComponent<TransformComponent>();
+    object->addComponent<MeshComponent>(robotMesh);
 
-    object.getComponent<TransformComponent>()->setPosition(glm::vec3(0.0f, 0.0f, 100.0f));
-    object.getComponent<TransformComponent>()->setScale(glm::vec3(0.5f));
+    object->getComponent<TransformComponent>()->setPosition(glm::vec3(0.0f, 0.0f, 100.0f));
+    object->getComponent<TransformComponent>()->setScale(glm::vec3(0.5f));
 
     // scene.addEntity(std::move(object));
 

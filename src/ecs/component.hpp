@@ -36,14 +36,7 @@ private:
   Entity *owner = nullptr;
 
 public:
-  virtual ~Component()
-  {
-    if (state != State::Destroyed)
-    {
-      onDestroy();
-      state = State::Destroyed;
-    }
-  }
+  virtual ~Component() = default;
 
   template <typename T>
   static size_t getTypeID()
