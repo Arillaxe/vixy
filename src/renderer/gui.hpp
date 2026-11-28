@@ -10,7 +10,7 @@
 #include <renderer/vk/vk_resource.hpp>
 #include <renderer/vk/vk_swapchain.hpp>
 
-static void check_vk_result(VkResult err)
+inline void check_vk_result(VkResult err)
 {
   if (err == 0)
     return;
