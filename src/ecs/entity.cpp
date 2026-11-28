@@ -1,5 +1,13 @@
 #include <ecs/entity.hpp>
 
+Entity::~Entity()
+{
+  for (auto it = components.rbegin(); it != components.rend(); ++it)
+  {
+    (*it)->destroy();
+  }
+}
+
 void Entity::init()
 {
   for (auto &component : components)

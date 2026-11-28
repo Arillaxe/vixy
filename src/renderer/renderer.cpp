@@ -276,11 +276,11 @@ void Renderer::render()
 
 	for (auto &entity : entities)
 	{
-		if (!entity.isActive())
+		if (!entity->isActive())
 			continue;
 
-		auto meshComponent = entity.getComponent<MeshComponent>();
-		auto transformComponent = entity.getComponent<TransformComponent>();
+		auto meshComponent = entity->getComponent<MeshComponent>();
+		auto transformComponent = entity->getComponent<TransformComponent>();
 
 		if (!meshComponent || !transformComponent)
 			continue;
