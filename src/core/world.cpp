@@ -6,50 +6,73 @@ World::World(uint32_t seed) : chunkGenerator(seed)
 {
 }
 
-void World::loadChunk(int x, int z)
+void World::loadColumn(int x, int z)
 {
   glm::ivec2 column{x, z};
 
   if (columnChunkYs.contains(column))
     return;
 
-  Heightmap heightmap = chunkGenerator.getHeightmap(x, z);
-  std::vector<int> chunkYs = ChunkGenerator::getRenderChunksYs(heightmap);
+  std::vector<int> chunkYs;
 
-  for (auto &y : chunkYs)
+  auto savedIt = savedColumns.find(column);
+
+  if (savedIt != savedColumns.end())
+  {
+    for (auto &chunk : savedIt->second)
+    {
+      chunk.isMeshed = false;
+      chunkYs.push_back(chunk.pos.y);
+      chunks.insert_or_assign(chunk.pos, std::move(chunk));
+    }
+
+    savedColumns.erase(savedIt);
+  }
+
+  Heightmap heightmap = chunkGenerator.getHeightmap(x, z);
+
+  for (int y : ChunkGenerator::getRenderChunksYs(heightmap))
   {
     glm::ivec3 pos{x, y, z};
 
-    if (chunks.find(pos) != chunks.end() || generatedEmpty.find(pos) != generatedEmpty.end())
-    {
+    if (chunks.contains(pos))
       continue;
-    }
 
-    auto chunk = chunkGenerator.generateChunk(x, y, z, heightmap);
-
-    if (chunk.voxelCount == 0)
-    {
-      generatedEmpty.insert(pos);
-    }
-
-    chunks.emplace(pos, std::move(chunk));
+    chunks.emplace(pos, chunkGenerator.generateChunk(x, y, z, heightmap));
+    chunkYs.push_back(y);
   }
 
   columnChunkYs.emplace(column, std::move(chunkYs));
 }
 
-void World::unloadChunk(int x, int y, int z)
+void World::unloadColumn(int x, int z)
 {
-  glm::ivec3 pos{x, y, z};
+  glm::ivec2 column{x, z};
 
-  chunks.erase(pos);
-  generatedEmpty.erase(pos);
+  auto columnIt = columnChunkYs.find(column);
+
+  if (columnIt == columnChunkYs.end())
+    return;
+
+  std::vector<Chunk> edited;
+
+  for (int y : columnIt->second)
+  {
+    auto node = chunks.extract(glm::ivec3{x, y, z});
+
+    if (!node.empty() && node.mapped().isEdited)
+      edited.push_back(std::move(node.mapped()));
+  }
+
+  if (!edited.empty())
+    savedColumns.insert_or_assign(column, std::move(edited));
+
+  columnChunkYs.erase(columnIt);
 }
 
 bool World::isChunkResolved(int x, int y, int z) const
 {
-  glm::ivec3 pos{x, y, z};
-  return chunks.find(pos) != chunks.end() || generatedEmpty.find(pos) != generatedEmpty.end();
+  return chunks.contains(glm::ivec3{x, y, z});
 }
 
 Voxel *World::getVoxel(int x, int y, int z)
@@ -72,7 +95,7 @@ Voxel *World::getVoxel(int x, int y, int z)
   return &it->second.getVoxel(localX, localY, localZ);
 }
 
-std::vector<Chunk *> World::getRenderChunks(int x, int z)
+std::vector<Chunk *> World::getColumnChunks(int x, int z)
 {
   std::vector<Chunk *> ret;
 
@@ -108,16 +131,17 @@ Chunk *World::getChunk(int x, int y, int z)
   return &chunkIt->second;
 }
 
-void World::createEmptyChunk(int x, int y, int z)
+Chunk *World::createEmptyChunk(int x, int y, int z)
 {
   glm::ivec3 pos{x, y, z};
 
-  auto chunkIt = chunks.find(pos);
+  if (Chunk *existing = getChunk(x, y, z))
+    return existing;
 
-  if (chunkIt != chunks.end())
-  {
-    return;
-  }
+  auto columnIt = columnChunkYs.find({x, z});
+
+  if (columnIt == columnChunkYs.end())
+    return nullptr;
 
   Chunk emptyChunk;
   emptyChunk.pos = pos;
@@ -133,5 +157,7 @@ void World::createEmptyChunk(int x, int y, int z)
     }
   }
 
-  chunks.emplace(pos, std::move(emptyChunk));
+  columnIt->second.push_back(y);
+
+  return &chunks.emplace(pos, std::move(emptyChunk)).first->second;
 }

@@ -14,6 +14,7 @@ public:
   glm::ivec3 pos;
   Voxels voxels;
   bool isMeshed = false;
+  bool isEdited = false;
   uint32_t voxelCount = 0;
 
   Voxel &getVoxel(int x, int y, int z)
