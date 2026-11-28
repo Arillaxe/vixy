@@ -62,7 +62,7 @@ public:
   MeshAllocator(const MeshAllocator &) = delete;
   MeshAllocator &operator=(const MeshAllocator &) = delete;
 
-  MeshAllocation allocate(std::vector<Vertex> &vertices, std::vector<uint32_t> &indices);
+  MeshAllocation allocate(std::vector<ChunkVertex> &vertices, std::vector<uint32_t> &indices);
   void free(MeshAllocation &allocation);
   bool needsFlush(size_t vertexCount, size_t indexCount) const;
   void flush();

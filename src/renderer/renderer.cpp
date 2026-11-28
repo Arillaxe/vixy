@@ -15,6 +15,7 @@ static_assert(BLOCK_TEXTURE_COUNT <= MAX_TEXTURES);
 
 constexpr uint32_t MAX_DRAW_COUNT = 100000;
 constexpr vk::DeviceSize MAX_DRAW_SIZE = sizeof(vk::DrawIndexedIndirectCommand) * MAX_DRAW_COUNT;
+constexpr vk::DeviceSize MAX_INSTANCE_SIZE = sizeof(ChunkInstance) * MAX_DRAW_COUNT;
 
 Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMeshMessage> &mQueue, ThreadQueue<MeshAllocation> &fQueue)
 		: window(win),
@@ -40,6 +41,8 @@ Renderer::Renderer(Window &win, Scene &_scene, Camera &cam, ThreadQueue<ChunkMes
 			indexBufferMemory(vkResource.getBufferMemory(indexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal)),
 			indirectBuffer(vkResource.createBuffer(MAX_DRAW_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eIndirectBuffer)),
 			indirectBufferMemory(vkResource.getBufferMemory(indirectBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
+			instanceBuffer(vkResource.createBuffer(MAX_INSTANCE_SIZE * MAX_FRAMES_IN_FLIGHT, vk::BufferUsageFlagBits::eVertexBuffer)),
+			instanceBufferMemory(vkResource.getBufferMemory(instanceBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)),
 			textureManager(vkResource),
 			sampler(createSampler())
 {
@@ -268,7 +271,7 @@ void Renderer::render()
 	commandBuffer.setScissor(0, scissor);
 	commandBuffer.setPrimitiveTopology(vk::PrimitiveTopology::eTriangleList);
 
-	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mainPipeline.getPipeline());
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mainPipeline.getEntityPipeline());
 	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mainPipeline.getPipelineLayout(), 0, *mainPipeline.getDescriptorSet(), mainPipeline.getVkUbo().getDynamicOffset(frameIndex));
 
 	for (auto &entity : entities)
@@ -294,9 +297,6 @@ void Renderer::render()
 		commandBuffer.pushConstants<PushConstants>(mainPipeline.getPipelineLayout(), vk::ShaderStageFlagBits::eVertex, 0, pushConstants);
 		commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 	}
-
-	PushConstants pushConstants;
-	pushConstants.model = glm::mat4(1.0f);
 
 	meshQueueSize = meshQueue.getSize();
 
@@ -326,11 +326,16 @@ void Renderer::render()
 	float aspectRatio = static_cast<float>(vkSwapchain.getExtent().width) / static_cast<float>(vkSwapchain.getExtent().height);
 	FrustumCuller culler(camera, aspectRatio);
 
-	commandBuffer.bindVertexBuffers(0, *vertexBuffer, {0});
-	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexTypeValue<uint32_t>::value);
-	commandBuffer.pushConstants<PushConstants>(mainPipeline.getPipelineLayout(), vk::ShaderStageFlagBits::eVertex, 0, pushConstants);
 	vk::DeviceSize indirectOffset = MAX_DRAW_SIZE * frameIndex;
+	vk::DeviceSize instanceOffset = MAX_INSTANCE_SIZE * frameIndex;
+
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mainPipeline.getPipeline());
+	std::array<vk::Buffer, 2> chunkVertexBuffers{*vertexBuffer, *instanceBuffer};
+	std::array<vk::DeviceSize, 2> chunkVertexOffsets{0, instanceOffset};
+	commandBuffer.bindVertexBuffers(0, chunkVertexBuffers, chunkVertexOffsets);
+	commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexTypeValue<uint32_t>::value);
 	auto indirectCommands = static_cast<vk::DrawIndexedIndirectCommand *>(indirectBufferMemory.mapMemory(indirectOffset, MAX_DRAW_SIZE));
+	auto instances = static_cast<ChunkInstance *>(instanceBufferMemory.mapMemory(instanceOffset, MAX_INSTANCE_SIZE));
 
 	uint32_t commandId = 0;
 
@@ -343,19 +348,29 @@ void Renderer::render()
 		if (commandId >= MAX_DRAW_COUNT)
 			break;
 
-		indirectCommands[commandId++] = vk::DrawIndexedIndirectCommand{
+		assert(meshAllocation.vertexOffset % sizeof(ChunkVertex) == 0);
+
+		instances[commandId] = ChunkInstance{
+				.origin = glm::vec3(pos * CHUNK_SIZE * VOXEL_SIZE),
+				.scale = static_cast<float>(VOXEL_SIZE),
+		};
+
+		indirectCommands[commandId] = vk::DrawIndexedIndirectCommand{
 				.indexCount = meshAllocation.indexCount,
 				.instanceCount = 1,
 				.firstIndex = static_cast<uint32_t>(
 						meshAllocation.indexOffset / sizeof(uint32_t)),
 				.vertexOffset = static_cast<int32_t>(
-						meshAllocation.vertexOffset / sizeof(Vertex)),
-				.firstInstance = 0,
+						meshAllocation.vertexOffset / sizeof(ChunkVertex)),
+				.firstInstance = commandId,
 		};
+
+		commandId++;
 
 		totalIndices += meshAllocation.indexCount;
 	}
 
+	instanceBufferMemory.unmapMemory();
 	indirectBufferMemory.unmapMemory();
 
 	commandBuffer.drawIndexedIndirect(*indirectBuffer, indirectOffset, commandId, sizeof(vk::DrawIndexedIndirectCommand));

@@ -372,7 +372,7 @@ void ChunkSystem::remeshChunk(Chunk &chunk)
 {
   chunk.isMeshed = true;
 
-  auto mesh = chunkMeshGenerator.getChunkMesh(chunk, 1);
+  auto mesh = chunkMeshGenerator.getChunkMesh(chunk);
   auto it = meshAllocations.find(chunk.pos);
 
   if (mesh.vertices.empty() || mesh.indices.empty())

@@ -17,45 +17,6 @@ void Vk_Pipeline::initialize()
   descriptorSet = createDescriptorSet();
 }
 
-vk::VertexInputBindingDescription Vk_Pipeline::getBindingDescription()
-{
-  return {
-      .binding = 0,
-      .stride = sizeof(Vertex),
-      .inputRate = vk::VertexInputRate::eVertex,
-  };
-}
-
-std::array<vk::VertexInputAttributeDescription, 4> Vk_Pipeline::getAttributeDescription()
-{
-  return {{
-      {
-          .location = 0,
-          .binding = 0,
-          .format = vk::Format::eR32G32B32Sfloat,
-          .offset = offsetof(Vertex, position),
-      },
-      {
-          .location = 1,
-          .binding = 0,
-          .format = vk::Format::eR32G32Sfloat,
-          .offset = offsetof(Vertex, texCoord),
-      },
-      {
-          .location = 2,
-          .binding = 0,
-          .format = vk::Format::eR32G32B32Sfloat,
-          .offset = offsetof(Vertex, normal),
-      },
-      {
-          .location = 3,
-          .binding = 0,
-          .format = vk::Format::eR32Uint,
-          .offset = offsetof(Vertex, textureId),
-      },
-  }};
-}
-
 vk::Format Vk_Pipeline::findDepthFormat()
 {
   return findSupportedFormat(

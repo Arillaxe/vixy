@@ -202,107 +202,105 @@ void ChunkMeshGenerator::emitQuad(
     int bit,
     int width,
     int height,
-    glm::ivec3 &chunkPos,
-    std::vector<Vertex> &vertices,
+    std::vector<ChunkVertex> &vertices,
     std::vector<uint32_t> &indices,
-    int size, uint32_t material)
+    uint32_t material)
 {
-  glm::ivec3 origin = glm::ivec3(chunkPos.x, chunkPos.y, chunkPos.z) * CHUNK_SIZE;
-  glm::vec3 v0, v1, v2, v3;
-  glm::vec3 normal;
+  glm::ivec3 v0, v1, v2, v3;
+  const bool positive = axisDirection == AxisDirection::Positive;
 
   switch (axis)
   {
   case Axis::X:
   {
-    normal = glm::vec3(1, 0, 0);
+    int x = positive ? slice + 1 : slice;
 
-    float x = origin.x + (axisDirection == AxisDirection::Positive ? slice + 1 : slice);
-
-    v0 = {x, origin.y + row, origin.z + bit};
-    v1 = {x, origin.y + row, origin.z + bit + height};
-    v2 = {x, origin.y + row + width, origin.z + bit};
-    v3 = {x, origin.y + row + width, origin.z + bit + height};
+    v0 = {x, row, bit};
+    v1 = {x, row, bit + height};
+    v2 = {x, row + width, bit};
+    v3 = {x, row + width, bit + height};
     break;
   }
 
   case Axis::Y:
   {
-    normal = glm::vec3(0, 1, 0);
+    int y = positive ? slice + 1 : slice;
 
-    float y = origin.y + (axisDirection == AxisDirection::Positive ? slice + 1 : slice);
-
-    v0 = {origin.x + row, y, origin.z + bit};
-    v1 = {origin.x + row + width, y, origin.z + bit};
-    v2 = {origin.x + row, y, origin.z + bit + height};
-    v3 = {origin.x + row + width, y, origin.z + bit + height};
+    v0 = {row, y, bit};
+    v1 = {row + width, y, bit};
+    v2 = {row, y, bit + height};
+    v3 = {row + width, y, bit + height};
     break;
   }
 
   case Axis::Z:
   {
-    normal = glm::vec3(0, 0, 1);
+    int z = positive ? slice + 1 : slice;
 
-    float z = origin.z + (axisDirection == AxisDirection::Positive ? slice + 1 : slice);
-
-    v0 = {origin.x + row, origin.y + bit, z};
-    v1 = {origin.x + row, origin.y + bit + height, z};
-    v2 = {origin.x + row + width, origin.y + bit, z};
-    v3 = {origin.x + row + width, origin.y + bit + height, z};
+    v0 = {row, bit, z};
+    v1 = {row, bit + height, z};
+    v2 = {row + width, bit, z};
+    v3 = {row + width, bit + height, z};
     break;
   }
   }
 
-  if (axisDirection == AxisDirection::Negative)
-  {
-    normal *= -1;
-  }
+  uint32_t face = static_cast<uint32_t>(axis) * 2 + (positive ? 0 : 1);
 
   assert(material < BLOCK_TYPE_COUNT);
   const BlockFaceTextures &faces = BLOCK_FACE_TEXTURES[material];
-  uint32_t textureId = axis != Axis::Y                          ? faces.side
-                       : axisDirection == AxisDirection::Positive ? faces.top
-                                                                  : faces.bottom;
+  uint32_t textureId = axis != Axis::Y ? faces.side
+                       : positive      ? faces.top
+                                       : faces.bottom;
 
   uint32_t baseVertex = static_cast<uint32_t>(vertices.size());
 
-  glm::vec2 uv0;
-  glm::vec2 uv1;
-  glm::vec2 uv2;
-  glm::vec2 uv3;
+  glm::ivec2 uv0;
+  glm::ivec2 uv1;
+  glm::ivec2 uv2;
+  glm::ivec2 uv3;
   if (axis == Axis::Y)
   {
-    uv0 = {0.0f, 0.0f};
-    uv1 = {(float)width, 0.0f};
-    uv2 = {0.0f, (float)height};
-    uv3 = {(float)width, (float)height};
+    uv0 = {0, 0};
+    uv1 = {width, 0};
+    uv2 = {0, height};
+    uv3 = {width, height};
   }
   else if (axis == Axis::X)
   {
-    const float uMinZ = (axisDirection == AxisDirection::Positive) ? (float)height : 0.0f;
-    const float uMaxZ = (axisDirection == AxisDirection::Positive) ? 0.0f : (float)height;
-    uv0 = {uMinZ, (float)width};
-    uv1 = {uMaxZ, (float)width};
-    uv2 = {uMinZ, 0.0f};
-    uv3 = {uMaxZ, 0.0f};
+    const int uMinZ = positive ? height : 0;
+    const int uMaxZ = positive ? 0 : height;
+    uv0 = {uMinZ, width};
+    uv1 = {uMaxZ, width};
+    uv2 = {uMinZ, 0};
+    uv3 = {uMaxZ, 0};
   }
   else
   {
-    const float uMinX = (axisDirection == AxisDirection::Positive) ? 0.0f : (float)width;
-    const float uMaxX = (axisDirection == AxisDirection::Positive) ? (float)width : 0.0f;
-    uv0 = {uMinX, (float)height};
-    uv1 = {uMinX, 0.0f};
-    uv2 = {uMaxX, (float)height};
-    uv3 = {uMaxX, 0.0f};
+    const int uMinX = positive ? 0 : width;
+    const int uMaxX = positive ? width : 0;
+    uv0 = {uMinX, height};
+    uv1 = {uMinX, 0};
+    uv2 = {uMaxX, height};
+    uv3 = {uMaxX, 0};
   }
 
-  const float scale = (float)VOXEL_SIZE * (float)size;
-  vertices.push_back({v0 * scale, uv0, normal, textureId});
-  vertices.push_back({v1 * scale, uv1, normal, textureId});
-  vertices.push_back({v2 * scale, uv2, normal, textureId});
-  vertices.push_back({v3 * scale, uv3, normal, textureId});
+  auto pushVertex = [&](const glm::ivec3 &p, const glm::ivec2 &uv)
+  {
+    assert(glm::all(glm::greaterThanEqual(p, glm::ivec3(0))) && glm::all(glm::lessThanEqual(p, glm::ivec3(CHUNK_SIZE))));
+    assert(glm::all(glm::greaterThanEqual(uv, glm::ivec2(0))) && glm::all(glm::lessThanEqual(uv, glm::ivec2(CHUNK_SIZE))));
+    vertices.push_back({
+        ChunkVertex::pack(p.x, p.y, p.z, uv.x, uv.y, face),
+        textureId,
+    });
+  };
 
-  if (axisDirection == AxisDirection::Positive)
+  pushVertex(v0, uv0);
+  pushVertex(v1, uv1);
+  pushVertex(v2, uv2);
+  pushVertex(v3, uv3);
+
+  if (positive)
   {
     indices.insert(indices.end(), {baseVertex + 0, baseVertex + 2, baseVertex + 1,
                                    baseVertex + 1, baseVertex + 2, baseVertex + 3});
@@ -318,10 +316,9 @@ void ChunkMeshGenerator::greedyMeshFaces(
     BinaryGrid &swizzledFaces,
     Axis axis,
     AxisDirection axisDirection,
-    glm::ivec3 &chunkPos,
-    std::vector<Vertex> &vertices,
+    std::vector<ChunkVertex> &vertices,
     std::vector<uint32_t> &indices,
-    int size, uint32_t material)
+    uint32_t material)
 {
   for (int i = 0; i < CHUNK_SIZE; i++)
   {
@@ -345,7 +342,7 @@ void ChunkMeshGenerator::greedyMeshFaces(
           swizzledFaces[k + 1][j + 1] &= ~mask;
         }
 
-        emitQuad(axis, axisDirection, j, i, offset, width, height, chunkPos, vertices, indices, size, material);
+        emitQuad(axis, axisDirection, j, i, offset, width, height, vertices, indices, material);
 
         row &= ~mask;
       }
@@ -353,9 +350,9 @@ void ChunkMeshGenerator::greedyMeshFaces(
   }
 }
 
-ChunkMesh ChunkMeshGenerator::getChunkMesh(Chunk &chunk, int size)
+ChunkMesh ChunkMeshGenerator::getChunkMesh(Chunk &chunk)
 {
-  std::vector<Vertex> vertices{};
+  std::vector<ChunkVertex> vertices{};
   std::vector<uint32_t> indices{};
 
   BinaryGrids solid = getBinaryGrids(chunk, 0);
@@ -380,7 +377,7 @@ ChunkMesh ChunkMeshGenerator::getChunkMesh(Chunk &chunk, int size)
                              : solid.xy;
       BinaryGrid axisFaces = getAxisFaces(config.occupancy, solidPlane, config.axisDirection == AxisDirection::Positive);
       BinaryGrid axisFacesSwizzled = swizzleFaces(axisFaces);
-      greedyMeshFaces(axisFacesSwizzled, config.axis, config.axisDirection, chunk.pos, vertices, indices, size, material);
+      greedyMeshFaces(axisFacesSwizzled, config.axis, config.axisDirection, vertices, indices, material);
     }
   }
 

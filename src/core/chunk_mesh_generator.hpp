@@ -49,23 +49,21 @@ class ChunkMeshGenerator
       int bit,
       int width,
       int height,
-      glm::ivec3 &chunkPos,
-      std::vector<Vertex> &vertices,
+      std::vector<ChunkVertex> &vertices,
       std::vector<uint32_t> &indices,
-      int size, uint32_t material);
+      uint32_t material);
   void greedyMeshFaces(
       BinaryGrid &swizzledFaces,
       Axis axis,
       AxisDirection axisDirection,
-      glm::ivec3 &chunkPos,
-      std::vector<Vertex> &vertices,
+      std::vector<ChunkVertex> &vertices,
       std::vector<uint32_t> &indices,
-      int size, uint32_t material);
+      uint32_t material);
 
 public:
   ChunkMeshGenerator(World &w);
 
-  ChunkMesh getChunkMesh(Chunk &chunk, int size);
+  ChunkMesh getChunkMesh(Chunk &chunk);
 };
 
 #endif // CHUNK_MESH_GENERATOR_HPP

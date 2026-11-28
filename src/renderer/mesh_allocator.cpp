@@ -111,14 +111,14 @@ void MeshAllocator::flush()
 
 bool MeshAllocator::needsFlush(size_t vertexCount, size_t indexCount) const
 {
-  uint32_t stagingSize = alignUp(sizeof(Vertex) * vertexCount) + alignUp(sizeof(uint32_t) * indexCount);
+  uint32_t stagingSize = alignUp(sizeof(ChunkVertex) * vertexCount) + alignUp(sizeof(uint32_t) * indexCount);
 
   return stagingOffset + stagingSize > STAGING_BUFFER_SIZE;
 }
 
-MeshAllocation MeshAllocator::allocate(std::vector<Vertex> &vertices, std::vector<uint32_t> &indices)
+MeshAllocation MeshAllocator::allocate(std::vector<ChunkVertex> &vertices, std::vector<uint32_t> &indices)
 {
-  uint32_t verticesAllocationSize = sizeof(Vertex) * vertices.size();
+  uint32_t verticesAllocationSize = sizeof(ChunkVertex) * vertices.size();
   uint32_t indicesAllocationSize = sizeof(uint32_t) * indices.size();
   uint32_t stagingSize = alignUp(verticesAllocationSize) + alignUp(indicesAllocationSize);
 
@@ -160,6 +160,6 @@ MeshAllocation MeshAllocator::allocate(std::vector<Vertex> &vertices, std::vecto
 
 void MeshAllocator::free(MeshAllocation &allocation)
 {
-  vertexAllocator.free(allocation.vertexOffset, sizeof(Vertex) * allocation.vertexCount);
+  vertexAllocator.free(allocation.vertexOffset, sizeof(ChunkVertex) * allocation.vertexCount);
   indexAllocator.free(allocation.indexOffset, sizeof(uint32_t) * allocation.indexCount);
 }

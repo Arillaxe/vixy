@@ -32,9 +32,6 @@ protected:
   virtual vk::raii::DescriptorSetLayout createDescriptorSetLayout() = 0;
   virtual vk::raii::DescriptorSet createDescriptorSet() = 0;
 
-  static vk::VertexInputBindingDescription getBindingDescription();
-  static std::array<vk::VertexInputAttributeDescription, 4> getAttributeDescription();
-
   vk::Format findDepthFormat();
   vk::Format findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
 

@@ -11,6 +11,7 @@ MainPipeline::MainPipeline(VkContext &context, VkSwapchain &swapchain, VkResourc
     : Vk_Pipeline(context, swapchain, resource, "slang.spv")
 {
   initialize();
+  entityPipeline = createEntityPipeline();
 }
 
 vk::raii::PipelineLayout MainPipeline::createPipelineLayout()
@@ -33,10 +34,101 @@ vk::raii::PipelineLayout MainPipeline::createPipelineLayout()
 
 vk::raii::Pipeline MainPipeline::createPipeline()
 {
+  std::array<vk::VertexInputBindingDescription, 2> bindings{{
+      {
+          .binding = 0,
+          .stride = sizeof(ChunkVertex),
+          .inputRate = vk::VertexInputRate::eVertex,
+      },
+      {
+          .binding = 1,
+          .stride = sizeof(ChunkInstance),
+          .inputRate = vk::VertexInputRate::eInstance,
+      },
+  }};
+
+  std::array<vk::VertexInputAttributeDescription, 3> attributes{{
+      {
+          .location = 0,
+          .binding = 0,
+          .format = vk::Format::eR32Uint,
+          .offset = offsetof(ChunkVertex, data),
+      },
+      {
+          .location = 1,
+          .binding = 0,
+          .format = vk::Format::eR32Uint,
+          .offset = offsetof(ChunkVertex, textureId),
+      },
+      {
+          .location = 2,
+          .binding = 1,
+          .format = vk::Format::eR32G32B32A32Sfloat,
+          .offset = offsetof(ChunkInstance, origin),
+      },
+  }};
+
+  vk::PipelineVertexInputStateCreateInfo vertexInputInfo{
+      .vertexBindingDescriptionCount = static_cast<uint32_t>(bindings.size()),
+      .pVertexBindingDescriptions = bindings.data(),
+      .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributes.size()),
+      .pVertexAttributeDescriptions = attributes.data(),
+  };
+
+  return buildPipeline(vertexInputInfo, "vertMain");
+}
+
+vk::raii::Pipeline MainPipeline::createEntityPipeline()
+{
+  vk::VertexInputBindingDescription binding{
+      .binding = 0,
+      .stride = sizeof(Vertex),
+      .inputRate = vk::VertexInputRate::eVertex,
+  };
+
+  std::array<vk::VertexInputAttributeDescription, 4> attributes{{
+      {
+          .location = 0,
+          .binding = 0,
+          .format = vk::Format::eR32G32B32Sfloat,
+          .offset = offsetof(Vertex, position),
+      },
+      {
+          .location = 1,
+          .binding = 0,
+          .format = vk::Format::eR32G32Sfloat,
+          .offset = offsetof(Vertex, texCoord),
+      },
+      {
+          .location = 2,
+          .binding = 0,
+          .format = vk::Format::eR32G32B32Sfloat,
+          .offset = offsetof(Vertex, normal),
+      },
+      {
+          .location = 3,
+          .binding = 0,
+          .format = vk::Format::eR32Uint,
+          .offset = offsetof(Vertex, textureId),
+      },
+  }};
+
+  vk::PipelineVertexInputStateCreateInfo vertexInputInfo{
+      .vertexBindingDescriptionCount = 1,
+      .pVertexBindingDescriptions = &binding,
+      .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributes.size()),
+      .pVertexAttributeDescriptions = attributes.data(),
+  };
+
+  return buildPipeline(vertexInputInfo, "entityVertMain");
+}
+
+vk::raii::Pipeline MainPipeline::buildPipeline(const vk::PipelineVertexInputStateCreateInfo &vertexInputInfo, const char *vertexEntry)
+{
   vk::PipelineShaderStageCreateInfo vertShaderStageInfo{
       .stage = vk::ShaderStageFlagBits::eVertex,
       .module = shader.getShaderModule(),
-      .pName = "vertMain",
+      .pName = vertexEntry,
   };
 
   vk::PipelineShaderStageCreateInfo fragShaderStageInfo{
@@ -46,16 +138,6 @@ vk::raii::Pipeline MainPipeline::createPipeline()
   };
 
   vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
-
-  auto bindingDescription = getBindingDescription();
-  auto attributeDescriptions = getAttributeDescription();
-
-  vk::PipelineVertexInputStateCreateInfo vertexInputInfo{
-      .vertexBindingDescriptionCount = 1,
-      .pVertexBindingDescriptions = &bindingDescription,
-      .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
-      .pVertexAttributeDescriptions = attributeDescriptions.data(),
-  };
 
   vk::PipelineInputAssemblyStateCreateInfo inputAssembly{
       .topology = vk::PrimitiveTopology::eTriangleList,

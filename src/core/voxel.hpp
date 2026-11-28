@@ -7,7 +7,7 @@ constexpr int VOXEL_SIZE = 10;
 
 struct Voxel
 {
-  uint32_t type;
+  uint8_t type;
 };
 
 #endif // VOXEL_HPP
