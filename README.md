@@ -25,9 +25,12 @@ build.bat              debug build   -> main.exe
 build.bat release      release build -> main-release.exe
 mingw32-make clean     remove build artifacts
 compile_shaders.bat    compile only the shaders (same as mingw32-make shaders)
+mingw32-make test      build and run the unit tests -> tests.exe
 ```
 
 Both builds compile the Slang shaders in `shaders/` to `slang.spv` and `cull.spv` in the repository root. The debug build enables asserts and Vulkan validation layers; the release build is optimized (`-O2`) and has both turned off.
+
+The unit tests in `tests/` use [doctest](https://github.com/doctest/doctest) (vendored as `include/doctest.h`) and need no GPU or window.
 
 ## Running
 

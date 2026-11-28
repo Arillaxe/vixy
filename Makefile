@@ -3,6 +3,7 @@
 #   mingw32-make            debug build -> main.exe (incremental, add -jN for parallel)
 #   mingw32-make release    optimized build -> main-release.exe (-O2, NDEBUG, no validation layers)
 #   mingw32-make shaders    compile the Slang shaders to SPIR-V
+#   mingw32-make test       build and run the unit tests (tests.exe)
 #   mingw32-make clean      remove build artifacts
 #
 # Object files live in one flat directory per configuration (source path
@@ -46,7 +47,15 @@ warnings_for = $(if $(filter src/imgui/%,$1),,$(WARNINGS))
 DEBUG_OBJS   := $(foreach s,$(SRCS),$(call obj_of,$s,$(DEBUG_DIR)))
 RELEASE_OBJS := $(foreach s,$(SRCS),$(call obj_of,$s,$(RELEASE_DIR)))
 
-.PHONY: all release shaders clean
+# Unit tests use the debug configuration (asserts on) and link only the core
+# sources they exercise, so they need neither a window nor a GPU.
+TEST_TARGET    := tests.exe
+TEST_SRCS      := $(wildcard tests/*.cpp)
+TEST_CORE_SRCS := src/core/arena_allocator.cpp src/core/world.cpp src/core/chunk_generator.cpp src/core/chunk_mesh_generator.cpp
+test_obj_of     = $(DEBUG_DIR)/tests.$(notdir $(basename $1)).o
+TEST_OBJS      := $(foreach s,$(TEST_SRCS),$(call test_obj_of,$s)) $(foreach s,$(TEST_CORE_SRCS),$(call obj_of,$s,$(DEBUG_DIR)))
+
+.PHONY: all release shaders test clean
 all: $(DEBUG_TARGET) $(SHADERS)
 release: $(RELEASE_TARGET) $(SHADERS)
 shaders: $(SHADERS)
@@ -56,6 +65,12 @@ $(DEBUG_TARGET): $(DEBUG_OBJS)
 
 $(RELEASE_TARGET): $(RELEASE_OBJS)
 	$(CXX) $(RELEASE_OBJS) $(LDFLAGS) $(LDLIBS) -o $@
+
+test: $(TEST_TARGET)
+	./$(TEST_TARGET)
+
+$(TEST_TARGET): $(TEST_OBJS)
+	$(CXX) $(TEST_OBJS) -o $@
 
 # $1 = object directory, $2 = configuration flags.
 # Any change to pch.hpp (or a header it pulls in) rebuilds the .gch and, in
@@ -80,6 +95,12 @@ endef
 $(foreach s,$(SRCS),$(eval $(call COMPILE_RULE,$s,$(DEBUG_DIR),$(DEBUG_FLAGS))))
 $(foreach s,$(SRCS),$(eval $(call COMPILE_RULE,$s,$(RELEASE_DIR),$(RELEASE_FLAGS))))
 
+define TEST_COMPILE_RULE
+$(call test_obj_of,$1): $1 $(DEBUG_DIR)/pch.hpp.gch | $(DEBUG_DIR)
+	$(CXX) $(CXXSTD) $(DEBUG_FLAGS) $(DEPFLAGS) $(WARNINGS) -I$(DEBUG_DIR) $(INCLUDES) -Itests -include pch.hpp -c $$< -o $$@
+endef
+$(foreach s,$(TEST_SRCS),$(eval $(call TEST_COMPILE_RULE,$s)))
+
 slang.spv: shaders/shader.slang
 	$(SLANGC) $< -target spirv -profile spirv_1_4 -capability nonuniformqualifier -emit-spirv-directly -fvk-use-entrypoint-name -entry vertMain -entry entityVertMain -entry fragMain -o $@
 
@@ -93,18 +114,19 @@ cull.spv: shaders/cull.slang
 # on the shell actually in use rather than on the OS.
 ifneq (,$(findstring sh,$(SHELL)))
 clean:
-	rm -rf "$(DEBUG_DIR)" "$(RELEASE_DIR)" "$(DEBUG_TARGET)" "$(RELEASE_TARGET)" $(SHADERS) src/pch.hpp.gch src/pch.hpp.d
+	rm -rf "$(DEBUG_DIR)" "$(RELEASE_DIR)" "$(DEBUG_TARGET)" "$(RELEASE_TARGET)" "$(TEST_TARGET)" $(SHADERS) src/pch.hpp.gch src/pch.hpp.d
 else
 clean:
 	if exist "$(DEBUG_DIR)" rmdir /s /q "$(DEBUG_DIR)"
 	if exist "$(RELEASE_DIR)" rmdir /s /q "$(RELEASE_DIR)"
 	if exist "$(DEBUG_TARGET)" del /q "$(DEBUG_TARGET)"
 	if exist "$(RELEASE_TARGET)" del /q "$(RELEASE_TARGET)"
+	if exist "$(TEST_TARGET)" del /q "$(TEST_TARGET)"
 	if exist slang.spv del /q slang.spv
 	if exist cull.spv del /q cull.spv
 	if exist src\pch.hpp.gch del /q src\pch.hpp.gch
 	if exist src\pch.hpp.d del /q src\pch.hpp.d
 endif
 
--include $(DEBUG_OBJS:.o=.d) $(RELEASE_OBJS:.o=.d)
+-include $(DEBUG_OBJS:.o=.d) $(RELEASE_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
 -include $(DEBUG_DIR)/pch.hpp.d $(RELEASE_DIR)/pch.hpp.d

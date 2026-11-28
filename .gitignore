@@ -8,3 +8,4 @@ build-release/
 src/pch.hpp.gch
 src/pch.hpp.d
 imgui.ini
+tests.exe
