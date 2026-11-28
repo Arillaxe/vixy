@@ -29,6 +29,9 @@ void VkSynchronization::waitDrawFence()
   {
     throw std::runtime_error("failed to wait for fence!");
   }
+}
 
+void VkSynchronization::resetDrawFence()
+{
   vkContext.getDevice().resetFences(*drawFence);
 }

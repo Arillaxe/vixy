@@ -430,6 +430,7 @@ void Renderer::render()
 
 	vk::Result result;
 	{
+		vkSynchronization[frameIndex].resetDrawFence();
 		std::lock_guard lock(vkContext.getQueueMutex());
 		vkContext.getQueue().submit(submitInfo, *vkSynchronization[frameIndex].getDrawFence());
 		result = vkContext.getQueue().presentKHR(presentInfoKHR);
