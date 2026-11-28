@@ -95,6 +95,7 @@ void Input::pollEvents()
   {
     glfwSetInputMode(window.getGLFWWindowHandle(), GLFW_CURSOR, mouseFree ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
     mouseFree = !mouseFree;
+    firstMouse = true;
   }
   toggleKeyWasDown = toggleKeyDown;
 
@@ -105,9 +106,6 @@ void Input::pollMouse()
 {
   if (mouseFree)
     return;
-
-  static bool firstMouse = true;
-  static double lastX, lastY;
 
   double mouseX, mouseY;
   glfwGetCursorPos(window.getGLFWWindowHandle(), &mouseX, &mouseY);

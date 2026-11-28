@@ -11,6 +11,9 @@ private:
   Camera &camera;
   bool mouseFree = false;
   bool toggleKeyWasDown = false;
+  bool firstMouse = true;
+  double lastX = 0.0;
+  double lastY = 0.0;
   float yaw = 0.0f;
   float pitch = 0.0f;
 
