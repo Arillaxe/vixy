@@ -1,6 +1,7 @@
 #include <core/input.hpp>
 
 #include <chrono>
+#include <cmath>
 #include <format>
 #include <string>
 #include <glm/glm.hpp>
@@ -13,7 +14,7 @@ Input::Input(Window &win, Camera &cam)
       camera(cam)
 {
   camera.position = glm::vec3(0, 1000, 0);
-  camera.rotation = glm::angleAxis(glm::radians(0.0f), glm::vec3(0, 1, 0));
+  camera.rotation = glm::angleAxis(yaw, glm::vec3(0, 1, 0)) * glm::angleAxis(pitch, glm::vec3(1, 0, 0));
   glfwSetInputMode(window.getGLFWWindowHandle(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
@@ -29,14 +30,17 @@ void Input::pollEvents()
   lastTime = currentTime;
 
   static float fpsTimer = 0;
+  static int fpsFrames = 0;
   static float fps = 0;
 
   fpsTimer += deltaTime;
+  fpsFrames++;
 
   if (fpsTimer > 0.25f)
   {
-    fps = 1.0f / deltaTime;
+    fps = static_cast<float>(fpsFrames) / fpsTimer;
     fpsTimer = 0;
+    fpsFrames = 0;
   }
 
   std::string cameraPos = std::format(
@@ -86,11 +90,14 @@ void Input::pollEvents()
     camera.position -= up * CAMERA_SPEED * deltaTime;
   }
 
-  if (glfwGetKey(window.getGLFWWindowHandle(), GLFW_KEY_E) == GLFW_PRESS)
+  bool toggleKeyDown = glfwGetKey(window.getGLFWWindowHandle(), GLFW_KEY_E) == GLFW_PRESS;
+  if (toggleKeyDown && !toggleKeyWasDown)
   {
     glfwSetInputMode(window.getGLFWWindowHandle(), GLFW_CURSOR, mouseFree ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
     mouseFree = !mouseFree;
+    firstMouse = true;
   }
+  toggleKeyWasDown = toggleKeyDown;
 
   pollMouse();
 }
@@ -99,9 +106,6 @@ void Input::pollMouse()
 {
   if (mouseFree)
     return;
-
-  static bool firstMouse = true;
-  static double lastX, lastY;
 
   double mouseX, mouseY;
   glfwGetCursorPos(window.getGLFWWindowHandle(), &mouseX, &mouseY);
@@ -119,16 +123,11 @@ void Input::pollMouse()
   lastX = mouseX;
   lastY = mouseY;
 
-  constexpr float sensitivity = 0.002f; // radians per pixel
+  constexpr float sensitivity = 0.002f;
+  constexpr float maxPitch = glm::radians(89.0f);
 
-  // World-space yaw
-  glm::quat yaw = glm::angleAxis(-dx * sensitivity, glm::vec3(0, 1, 0));
+  yaw = std::remainder(yaw - dx * sensitivity, glm::two_pi<float>());
+  pitch = glm::clamp(pitch - dy * sensitivity, -maxPitch, maxPitch);
 
-  // Camera local right vector
-  glm::vec3 right = camera.rotation * glm::vec3(1, 0, 0);
-
-  // Local-space pitch
-  glm::quat pitch = glm::angleAxis(-dy * sensitivity, right);
-
-  camera.rotation = glm::normalize(pitch * yaw * camera.rotation);
+  camera.rotation = glm::angleAxis(yaw, glm::vec3(0, 1, 0)) * glm::angleAxis(pitch, glm::vec3(1, 0, 0));
 }
